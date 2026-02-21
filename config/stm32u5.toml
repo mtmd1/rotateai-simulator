@@ -1,0 +1,7 @@
+# Default configuration for the STM32U5.
+
+[config]
+sample_rate = 5         # Hz
+voltage = 1.8           # Volts
+DMIPS_per_MHz = 1.5
+safety_margin = 1.5
