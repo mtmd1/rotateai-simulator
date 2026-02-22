@@ -20,7 +20,7 @@ class Data:
         '''Load the data path as a file or directory and populate batches.'''
         path = Path(path_str)
         if not path.is_absolute():
-            path = ROOT / path_str
+            path = Path.cwd() / path_str
 
         self.batches = []
         

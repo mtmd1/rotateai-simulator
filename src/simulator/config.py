@@ -23,7 +23,7 @@ class Config:
         '''Load the configuration from the given path and validate it.'''
         path = Path(path_str)
         if not path.is_absolute():
-            path = ROOT / path_str
+            path = Path.cwd() / path_str
         try:
             with path.open('rb') as f:
                 data = tomllib.load(f)

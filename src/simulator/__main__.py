@@ -32,25 +32,25 @@ def simulate(args):
 def main():
     parser = argparse.ArgumentParser(
         prog='simulate',
-        description='A simulator for RotateAI model inference on virtual microcontroller environments'
+        description='A simulator for RotateAI model inference on virtual microcontroller environments.'
     )
 
     parser.add_argument(
         '--config', '-c',
         required=True,
-        help='Path to simulation config TOML file'
+        help='path to simulation config TOML file'
     )
 
     parser.add_argument(
         '--binary', '-b',
         required=True,
-        help='Path to simulation binary file'
+        help='path to simulation binary file'
     )
 
     parser.add_argument(
         '--data', '-d',
         required=True,
-        help='Path to MAT data directory or file'
+        help='path to MAT data directory or file'
     )
 
     parser.set_defaults(func=simulate)

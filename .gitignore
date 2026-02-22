@@ -47,4 +47,5 @@ cover/
 
 # Environment
 .venv
-/working/
+working/*
+!working/.gitkeep
