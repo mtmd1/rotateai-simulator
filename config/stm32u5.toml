@@ -1,4 +1,5 @@
 # Default configuration for the STM32U5.
+# https://www.st.com/resource/en/application_note/an5652-how-to-optimize-power-consumption-on-stm32u5-mcus-stmicroelectronics.pdf
 
 [config]
 sample_rate = 5         # Hz

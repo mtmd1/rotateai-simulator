@@ -1,6 +1,6 @@
-[project.build-system]
+[build-system]
 requires = ['setuptools>=45', 'wheel']
-build_backend = 'setuptools.build_meta'
+build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'rotateai-simulator'
@@ -8,11 +8,16 @@ version = '0.0.0'
 description = 'A simulator for RotateAI model inference on virtual microcontroller environments'
 requires-python = '>=3.10'
 dependencies = [
-    
+    'scipy>=1.15',
+    'tomli>=2.4; python_version < "3.11"',
 ]
 
 [project.optional-dependencies]
 test = [
     'pytest>=7.0',
 ]
+
+[project.scripts]
+simulate = 'simulator.__main__:main'
+sim = 'simulator.__main__:main'
 

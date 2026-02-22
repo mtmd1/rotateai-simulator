@@ -5,7 +5,11 @@ Parser for configuration of the microcontroller constants.
 Created: 2026-02-21
  Author: Maxence Morel Dierckx
 '''
-import tomllib
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 from pathlib import Path
 
 
@@ -15,8 +19,73 @@ ROOT = HERE.parent.parent
 class Config:
     '''A configuration object.'''
 
-    def __init__(self, file_path_str: str) -> Config:
-        file_path = ROOT / file_path_str
-        data = tomllib.load(file_path)
+    def __init__(self, path_str: str) -> None:
+        '''Load the configuration from the given path and validate it.'''
+        path = Path(path_str)
+        if not path.is_absolute():
+            path = ROOT / path_str
+        try:
+            with path.open('rb') as f:
+                data = tomllib.load(f)
+        except FileNotFoundError as e:
+            print(f'Config file {path} not found.', file=sys.stderr)
+            exit(1)
+
+        errors = self.validate(data)
+
+        if not errors:
+            values = self.extract_values(data)
+            (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.safety_margin) = values
         
-        # TODO: load params from config dict
+        else:
+            errors_str = '\n'.join(errors)
+            print(f'Config file {path} has errors:\n{errors_str}', file=sys.stderr)
+            exit(1)
+
+
+    def validate(self, config: dict) -> list[str]:
+        '''Validate that a given config contains the necessary keys with valid values.'''
+        errors: list[str] = []
+        
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'safety_margin']:
+
+            value = self.get_nested_value(config, key)
+            
+            if value is None:
+                errors.append(f'Missing variable {key}')
+            
+            else:
+                try:
+                    if key == 'safety_margin':
+                        if value < 1:
+                            errors.append('safety_margin must be >= 1.0')
+                    else:
+                        if value <= 0:
+                            errors.append(f'{key} must be positive')
+
+                except TypeError:
+                    errors.append(f'{key} must be a number')
+
+        return errors
+
+    
+    def extract_values(self, config: dict) -> tuple[float | int]:
+        '''Extract the expected keys recursively'''
+        values: list[float | int] = []
+        
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'safety_margin']:
+            values.append(self.get_nested_value(config, key))
+        
+        return tuple(values)
+
+
+    def get_nested_value(self, d: dict, key: str):
+        '''Extract the value of a key anywhere in a nested dict. Returns the first occurence.'''
+        for k in d:
+            if k == key:
+                return d[k]
+            elif isinstance(d[k], dict):
+                result = self.get_nested_value(d[k], key)
+                if result is not None:
+                    return result
+        

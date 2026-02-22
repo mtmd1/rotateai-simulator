@@ -7,10 +7,10 @@ Created: 2026-02-21
 '''
 import argparse
 from pathlib import Path
-from config import Config
-from data import Data
-from runner import Simulator
-from report import Report, save_report
+from .config import Config
+from .data import Data
+# from .runner import Simulator
+# from .report import Report, save_report
 
 
 HERE = Path(__file__).parent.resolve()
@@ -20,12 +20,13 @@ ROOT = HERE.parent.parent
 def simulate(args):
     config = Config(args.config)
     data = Data(args.data)
-    simulator = Simulator(args.binary, config)
+    # simulator = Simulator(args.binary, config)
 
     for batch in data:
-        result = simulator.run(batch)
-        report = Report(config, batch, result)
-        save_report(report)
+        print(batch['A'].shape)
+        # result = simulator.run(batch)
+        # report = Report(config, batch, result)
+        # save_report(report)
 
 
 def main():
