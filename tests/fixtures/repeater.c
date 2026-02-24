@@ -3,14 +3,11 @@
 
 int main()
 {
-    char *line = NULL;
-    size_t len = 0;
-
-    while (getline(&line, &len, stdin) != -1)
-    {
-        fputs(line, stdout);
+    float in[7];
+    
+    while (fread(in, sizeof(float), 7, stdin) == 7) {
+        fwrite(in, sizeof(float), 6, stdout);
         fflush(stdout);
     }
-    free(line);
     return 0;
 }

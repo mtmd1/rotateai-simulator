@@ -140,9 +140,11 @@ class TestSimulatorRun:
         mock_bench.collect.assert_called_once()
 
     def test_repeater_echoes_input(self, repeater):
-        '''Repeater echoes all 7 input values. add_row slices Mw=[0:3] Aw=[3:6].
+        '''Repeater reads 7 float32s and writes back the first 6.
         Input is: p mx my mz ax ay az
-        So Mw gets (p, mx, my) and Aw gets (mz, ax, ay).'''
+        Output is: p mx my mz ax ay
+        So Mw gets (p, mx, my) and Aw gets (mz, ax, ay).
+        Values go through float64->float32->float64 so we use atol for precision.'''
         sim = _make_simulator(repeater)
         n = 5
         data = _make_data(n)
@@ -150,10 +152,10 @@ class TestSimulatorRun:
             result = sim.run(data)
 
         for i in range(n):
-            expected_mw = [data['p'][i], data['M'][i][0], data['M'][i][1]]
-            expected_aw = [data['M'][i][2], data['A'][i][0], data['A'][i][1]]
-            np.testing.assert_allclose(result.Mw[i], expected_mw, rtol=1e-6)
-            np.testing.assert_allclose(result.Aw[i], expected_aw, rtol=1e-6)
+            expected_mw = np.float32([data['p'][i], data['M'][i][0], data['M'][i][1]])
+            expected_aw = np.float32([data['M'][i][2], data['A'][i][0], data['A'][i][1]])
+            np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
+            np.testing.assert_allclose(result.Aw[i], expected_aw, atol=1e-7)
 
     def test_run_single_step(self, repeater):
         sim = _make_simulator(repeater)

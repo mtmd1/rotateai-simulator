@@ -71,9 +71,14 @@ class Data:
             exit(1)
 
     
-    def __iter__(self) -> list:
+    def __iter__(self):
         '''Return batches.'''
         return iter(self.batches)
+
+    
+    def __len__(self) -> int:
+        '''Return the number of batches.'''
+        return len(self.batches)
     
     
     def load_mat_file(self, path: Path) -> dict[str, np.ndarray] | None:

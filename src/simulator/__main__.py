@@ -5,8 +5,12 @@ CLI entry point and orchestrator for the simulation pipeline.
 Created: 2026-02-21
  Author: Maxence Morel Dierckx
 '''
+import sys
+import signal
 import argparse
+from tqdm import tqdm
 from pathlib import Path
+from functools import partial
 from .config import Config
 from .data import Data
 from .runner import Simulator
@@ -17,13 +21,21 @@ HERE = Path(__file__).parent.resolve()
 ROOT = HERE.parent.parent
 
 
+def handle_shutdown(signum, frame):
+    '''Clean exit on SIGINT/SIGTERM.'''
+    name = signal.Signals(signum).name
+    print(f'\nReceived {name}, shutting down.', file=sys.stderr)
+    sys.exit(1)
+
+
 def simulate(args):
+    '''Load the config, data and binary and run the full simulation.'''
     config = Config(args.config)
     data = Data(args.data)
     simulator = Simulator(args.binary)
 
-    for batch in data:
-        result = simulator.run(batch)
+    for i, batch in enumerate(data):
+        result = simulator.run(batch, progress=partial(tqdm, desc=f'Batch {i + 1}/{len(data)}'))
         # report = Report(config, batch, result)
         # save_report(report)
 
@@ -31,6 +43,9 @@ def simulate(args):
 
 
 def main():
+    signal.signal(signal.SIGINT, handle_shutdown)
+    signal.signal(signal.SIGTERM, handle_shutdown)
+
     parser = argparse.ArgumentParser(
         prog='simulate',
         description='A simulator for RotateAI model inference on virtual microcontroller environments.'

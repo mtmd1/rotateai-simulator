@@ -6,6 +6,7 @@ Created: 2026-02-24
  Author: Maxence Morel Dierckx
 '''
 import sys
+import struct
 import subprocess
 import numpy as np
 from pathlib import Path
@@ -47,8 +48,9 @@ class Simulator:
             exit(1)
 
 
-    def run(self, data: dict[str, np.ndarray]) -> SimResult:
-        '''Run the binary on the given data and return the simulation result.'''
+    def run(self, data: dict[str, np.ndarray], progress=None) -> SimResult:
+        '''Run the binary on the given data and return the simulation result.
+        progress: optional callable(iterable, total=int) -> iterable (for tqdm).'''
         p = data['p'] # Pressure
         M = data['M'] # Magnetometer
         A = data['A'] # Accelerometer
@@ -60,8 +62,6 @@ class Simulator:
             [self.binary],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            text=True,
-            bufsize=1
         )
 
         # Pass it to the benchmarker
@@ -69,27 +69,41 @@ class Simulator:
         result.benchmark = benchmarker
 
         # Run the main simulation loop
-        for i in range(steps):
+        loop = range(steps)
+        if progress:
+            loop = progress(loop, total=steps)
+        for i in loop:
 
             # Input contract p mx my mz ax ay az
-            sample = f'{p[i]} {M[i][0]} {M[i][1]} {M[i][2]} {A[i][0]} {A[i][1]} {A[i][2]}'
+            sample = struct.pack(
+                '7f', 
+                p[i], 
+                M[i][0], M[i][1], M[i][2], 
+                A[i][0], A[i][1], A[i][2]
+            )
 
-            process.stdin.write(sample + '\n')
+            process.stdin.write(sample)
             process.stdin.flush() # Binary receives it immediately
 
             # Block until output is available
-            output = process.stdout.readline()
+            output = process.stdout.read(24) # 6 float32s = 24 bytes
+            if len(output) != 24:
+                print(f'Binary returned {len(output)} bytes, expected 24.', file=sys.stderr)
+                exit(1)
 
             # Output contract mwx mwy mwz awx awy awz
             try:
-                corrected_sample = [float(v) for v in output.strip().split()]
-            except ValueError:
-                print(f'Binary returned non-float value in output.', file=sys.stderr)
+                corrected_sample = struct.unpack('6f', output)
+            except struct.error as e:
+                print(f'Parsing binary output failed: {e}', file=sys.stderr)
                 exit(1)
 
             result.add_row(corrected_sample)
         
         process.stdin.close()
+        remaining = process.stdout.read()
+        if remaining:
+            print(f'Warning: binary wrote {len(remaining)} extra bytes after expected output.')
         process.wait()
         benchmarker.collect()
 
