@@ -19,16 +19,16 @@ ROOT = HERE.parent.parent
 class Config:
     '''A configuration object.'''
 
-    def __init__(self, path_str: str) -> None:
+    def __init__(self, config_path_str: str) -> None:
         '''Load the configuration from the given path and validate it.'''
-        path = Path(path_str)
-        if not path.is_absolute():
-            path = Path.cwd() / path_str
+        config_path = Path(config_path_str)
+        if not config_path.is_absolute():
+            config_path = Path.cwd() / config_path_str
         try:
-            with path.open('rb') as f:
+            with config_path.open('rb') as f:
                 data = tomllib.load(f)
         except FileNotFoundError as e:
-            print(f'Config file {path} not found.', file=sys.stderr)
+            print(f'Config file {config_path} not found.', file=sys.stderr)
             exit(1)
 
         errors = self.validate(data)
@@ -39,7 +39,7 @@ class Config:
         
         else:
             errors_str = '\n'.join(errors)
-            print(f'Config file {path} has errors:\n{errors_str}', file=sys.stderr)
+            print(f'Config file {config_path} has errors:\n{errors_str}', file=sys.stderr)
             exit(1)
 
 

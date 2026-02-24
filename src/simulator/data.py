@@ -16,19 +16,19 @@ ROOT = HERE.parent.parent
 class Data:
     '''The top-level list of deployments to simulate against.'''
 
-    def __init__(self, path_str: str) -> None:
+    def __init__(self, data_path_str: str) -> None:
         '''Load the data path as a file or directory and populate batches.'''
-        path = Path(path_str)
-        if not path.is_absolute():
-            path = Path.cwd() / path_str
+        data_path = Path(data_path_str)
+        if not data_path.is_absolute():
+            data_path = Path.cwd() / data_path_str
 
         self.batches = []
         
-        if path.is_file():
-            if path.suffix == '.mat':
-                mat_file = self.load_mat_file(path)
+        if data_path.is_file():
+            if data_path.suffix == '.mat':
+                mat_file = self.load_mat_file(data_path)
                 if not mat_file:
-                    print(f'Data file {path}: unable to load.', file=sys.stderr)
+                    print(f'Data file {data_path}: unable to load.', file=sys.stderr)
                     exit(1)
 
                 errors = self.validate(mat_file)
@@ -36,16 +36,16 @@ class Data:
                     self.batches = [mat_file]
                 else:
                     errors_str = '\n'.join(errors)
-                    print(f'Data file {path} has errors:\n{errors_str}', file=sys.stderr)
+                    print(f'Data file {data_path} has errors:\n{errors_str}', file=sys.stderr)
                     exit(1)
             else:
-                print(f'Data file {path} is not a .mat file.', file=sys.stderr)
+                print(f'Data file {data_path} is not a .mat file.', file=sys.stderr)
                 exit(1)
 
-        elif path.is_dir():
-            files = [file_path for file_path in path.rglob('*.mat')]
+        elif data_path.is_dir():
+            files = [file_path for file_path in data_path.rglob('*.mat')]
             if len(files) == 0:
-                print(f'Data directory {path} does not contain any .mat files.', file=sys.stderr)
+                print(f'Data directory {data_path} does not contain any .mat files.', file=sys.stderr)
                 exit(1)
             else:
                 for file in files:
@@ -67,7 +67,7 @@ class Data:
                             exit(1)
 
         else:
-            print(f'Data path {path} not found.', file=sys.stderr)
+            print(f'Data path {data_path} not found.', file=sys.stderr)
             exit(1)
 
     
@@ -87,6 +87,7 @@ class Data:
         except Exception as e:
             print(f'Unexpected error in load_mat_file: {e}', file=sys.stderr)
         return None
+    
     
     def validate(self, data: dict[str, np.ndarray]) -> list[str]:
         '''Validate that a given mat file contains the necessary keys and shapes.'''

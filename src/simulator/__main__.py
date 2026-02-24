@@ -20,11 +20,10 @@ ROOT = HERE.parent.parent
 def simulate(args):
     config = Config(args.config)
     data = Data(args.data)
-    # simulator = Simulator(args.binary, config)
+    simulator = Simulator(args.binary)
 
     for batch in data:
-        print(batch['A'].shape)
-        # result = simulator.run(batch)
+        result = simulator.run(batch)
         # report = Report(config, batch, result)
         # save_report(report)
 
