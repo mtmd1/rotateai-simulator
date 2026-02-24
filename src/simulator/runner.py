@@ -20,7 +20,6 @@ class SimResult:
         self.Mw: np.ndarray = np.zeros((N, 3))
         self.Aw: np.ndarray = np.zeros((N, 3))
         self.sample_index = 0
-
         self.benchmark = None
 
 
@@ -90,6 +89,7 @@ class Simulator:
 
             result.add_row(corrected_sample)
         
+        process.stdin.close()
         process.wait()
         benchmarker.collect()
 

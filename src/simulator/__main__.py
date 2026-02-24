@@ -9,7 +9,7 @@ import argparse
 from pathlib import Path
 from .config import Config
 from .data import Data
-# from .runner import Simulator
+from .runner import Simulator
 # from .report import Report, save_report
 
 
@@ -26,6 +26,8 @@ def simulate(args):
         result = simulator.run(batch)
         # report = Report(config, batch, result)
         # save_report(report)
+
+    print(result.Aw) # testing
 
 
 def main():

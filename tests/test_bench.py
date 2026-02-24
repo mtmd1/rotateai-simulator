@@ -9,7 +9,6 @@ import pytest
 import resource
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-
 from simulator.bench import Benchmarker
 
 

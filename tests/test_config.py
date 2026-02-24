@@ -10,7 +10,6 @@ try:
     import tomllib
 except ImportError:
     import tomli as tomllib
-
 from simulator.config import Config
 
 

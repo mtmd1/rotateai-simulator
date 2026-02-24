@@ -8,7 +8,6 @@ Created: 2026-02-22
 import pytest
 import numpy as np
 import scipy.io as sio
-
 from simulator.data import Data
 
 
