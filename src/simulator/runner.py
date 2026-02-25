@@ -10,14 +10,14 @@ import struct
 import subprocess
 import numpy as np
 from pathlib import Path
-from .bench import Benchmarker
+from simulator.bench import Benchmarker
 
 
 class SimResult:
     '''An object holding all the measured results of the simulation'''
 
     def __init__(self, N: int) -> None:
-        # Sample data
+        self.N = N
         self.Mw: np.ndarray = np.zeros((N, 3))
         self.Aw: np.ndarray = np.zeros((N, 3))
         self.sample_index = 0

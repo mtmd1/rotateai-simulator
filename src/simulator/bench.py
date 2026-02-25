@@ -21,6 +21,7 @@ class Benchmarker:
         self.peak_memory = None
         self.total_instructions = None
         self.total_flops = None
+        self.cpu_time = None
 
         try:
             perf_events = self.get_perf_events()
@@ -46,7 +47,7 @@ class Benchmarker:
 
             if 'GenuineIntel' in cpu_info: 
                 # Intel
-                return 'instructions,fp_arith_inst_retired.scalar_double'
+                return 'instructions,fp_arith_inst_retired.128b_packed_single'
             elif 'AuthenticAMD' in cpu_info: 
                 # AMD
                 return 'instructions,fp_ret_sse_avx_ops.double'
@@ -92,7 +93,9 @@ class Benchmarker:
 
     def collect(self) -> None:
         '''Collect the results of perf and resource.getrusage.'''
-        self.peak_memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+        usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+        self.peak_memory = usage.ru_maxrss
+        self.cpu_time = usage.ru_utime + usage.ru_stime
         
         if self.perf is not None:
             _, stderr = self.perf.communicate()

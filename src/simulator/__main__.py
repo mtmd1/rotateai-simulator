@@ -11,10 +11,10 @@ import argparse
 from tqdm import tqdm
 from pathlib import Path
 from functools import partial
-from .config import Config
-from .data import Data
-from .runner import Simulator
-# from .report import Report, save_report
+from simulator.config import Config
+from simulator.data import Data
+from simulator.runner import Simulator
+from simulator.report import save_report
 
 
 HERE = Path(__file__).parent.resolve()
@@ -33,13 +33,13 @@ def simulate(args):
     config = Config(args.config)
     data = Data(args.data)
     simulator = Simulator(args.binary)
+    report_prefix = f'simreport_{args.binary.split("/")[-1]}_{args.data.split("/")[-1].split(".")[0]}'
 
     for i, batch in enumerate(data):
         result = simulator.run(batch, progress=partial(tqdm, desc=f'Batch {i + 1}/{len(data)}'))
-        # report = Report(config, batch, result)
-        # save_report(report)
-
-    print(result.Aw) # testing
+        save_report(f'{report_prefix}_{i}', config, batch, result)
+    
+    print('Done.')
 
 
 def main():

@@ -20,6 +20,7 @@ VALID_TOML = '''\
 sample_rate = 5
 voltage = 1.8
 DMIPS_per_MHz = 1.5
+uA_per_MHz = 51.6
 safety_margin = 1.5
 '''
 
@@ -30,6 +31,7 @@ sample_rate = 10
 [hardware]
 voltage = 3.3
 DMIPS_per_MHz = 2.0
+uA_per_MHz = 51.6
 
 [runtime]
 safety_margin = 1.2
@@ -68,6 +70,7 @@ def bad_values_config(tmp_path) -> str:
 sample_rate = -1
 voltage = 0
 DMIPS_per_MHz = 1.5
+uA_per_MHz = 51.6
 safety_margin = 0.5
 ''')
     return str(path)
@@ -113,7 +116,7 @@ class TestValidate:
 
     def _make_config(self, **overrides):
         '''Build a valid flat config dict, then apply overrides.'''
-        base = {'sample_rate': 5, 'voltage': 1.8, 'DMIPS_per_MHz': 1.5, 'safety_margin': 1.5}
+        base = {'sample_rate': 5, 'voltage': 1.8, 'DMIPS_per_MHz': 1.5, 'uA_per_MHz': 51.6, 'safety_margin': 1.5}
         base.update(overrides)
         return base
 
@@ -129,7 +132,7 @@ class TestValidate:
 
     def test_missing_multiple_keys(self):
         errors = self._config().validate({})
-        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'safety_margin']:
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'safety_margin']:
             assert any(f'Missing variable {key}' in e for e in errors)
 
     def test_negative_value_rejected(self):
@@ -167,18 +170,18 @@ class TestExtractValues:
         return object.__new__(Config)
 
     def test_extracts_flat_config(self):
-        cfg = {'sample_rate': 5, 'voltage': 1.8, 'DMIPS_per_MHz': 1.5, 'safety_margin': 1.5}
-        assert self._config().extract_values(cfg) == (5, 1.8, 1.5, 1.5)
+        cfg = {'sample_rate': 5, 'voltage': 1.8, 'DMIPS_per_MHz': 1.5, 'uA_per_MHz': 51.6, 'safety_margin': 1.5}
+        assert self._config().extract_values(cfg) == (5, 1.8, 1.5, 51.6, 1.5)
 
     def test_extracts_nested_config(self):
         cfg = tomllib.loads(NESTED_TOML)
-        assert self._config().extract_values(cfg) == (10, 3.3, 2.0, 1.2)
+        assert self._config().extract_values(cfg) == (10, 3.3, 2.0, 51.6, 1.2)
 
     def test_returns_tuple(self):
-        cfg = {'sample_rate': 5, 'voltage': 1.8, 'DMIPS_per_MHz': 1.5, 'safety_margin': 1.5}
+        cfg = {'sample_rate': 5, 'voltage': 1.8, 'DMIPS_per_MHz': 1.5, 'uA_per_MHz': 51.6, 'safety_margin': 1.5}
         result = self._config().extract_values(cfg)
         assert isinstance(result, tuple)
-        assert len(result) == 4
+        assert len(result) == 5
 
 
 # MARK: init
@@ -191,6 +194,7 @@ class TestInit:
         assert c.sample_rate == 5
         assert c.voltage == 1.8
         assert c.DMIPS_per_MHz == 1.5
+        assert c.uA_per_MHz == 51.6
         assert c.safety_margin == 1.5
 
     def test_loads_nested_config(self, nested_config):
@@ -198,6 +202,7 @@ class TestInit:
         assert c.sample_rate == 10
         assert c.voltage == 3.3
         assert c.DMIPS_per_MHz == 2.0
+        assert c.uA_per_MHz == 51.6
         assert c.safety_margin == 1.2
 
     def test_nonexistent_file_exits(self, tmp_path):
