@@ -10,6 +10,7 @@ import struct
 import subprocess
 import numpy as np
 from pathlib import Path
+
 from simulator.bench import Benchmarker
 
 
@@ -45,7 +46,7 @@ class Simulator:
 
         else:
             print(f'Binary path {binary_path} not found.', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
 
     def run(self, data: dict[str, np.ndarray], progress=None) -> SimResult:
@@ -89,14 +90,14 @@ class Simulator:
             output = process.stdout.read(24) # 6 float32s = 24 bytes
             if len(output) != 24:
                 print(f'Binary returned {len(output)} bytes, expected 24.', file=sys.stderr)
-                exit(1)
+                sys.exit(1)
 
             # Output contract mwx mwy mwz awx awy awz
             try:
                 corrected_sample = struct.unpack('6f', output)
             except struct.error as e:
                 print(f'Parsing binary output failed: {e}', file=sys.stderr)
-                exit(1)
+                sys.exit(1)
 
             result.add_row(corrected_sample)
         

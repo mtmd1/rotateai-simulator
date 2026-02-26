@@ -9,6 +9,8 @@ Created: 2026-02-25
 import sys
 import json
 import numpy as np
+from pathlib import Path
+
 from simulator.config import Config
 from simulator.runner import SimResult
 
@@ -35,7 +37,7 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: SimResult) -> None:
+def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: SimResult, output_path: Path) -> None:
     '''Calculate derived estimates, error, and save them with
     the benchmarking statistics as a JSON report.'''
     (minimum_frequency,
@@ -71,7 +73,7 @@ def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: 
             'RMSE_Aw_g': r(rmse_aw)
         }
     }
-    with open(f'{name}.json', 'w') as f:
+    with open(output_path / f'{name}.json', 'w') as f:
         json.dump(report, f, indent=4, cls=NumpyEncoder)
     
     
@@ -81,15 +83,14 @@ def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     instructions_per_inference = result.benchmark.total_instructions / result.N
 
     # Minimum operating frequency (MHz) for duty cycle = 1
-    minimum_frequency = (instructions_per_inference * config.sample_rate * config.safety_margin) / (config.DMIPS_per_MHz * 1e6)
+    minimum_frequency = (instructions_per_inference * config.sample_rate) / (config.DMIPS_per_MHz * 1e6)
 
     # Energy per inference (mJ) — frequency-independent within a voltage range
     charge_per_inference = config.uA_per_MHz * instructions_per_inference / (config.DMIPS_per_MHz * 1e6)
     energy_per_inference = config.voltage * charge_per_inference / 1e3
 
     # Duty cycle at maximum operating frequency
-    min_freq_no_margin = minimum_frequency / config.safety_margin
-    duty_cycle = min_freq_no_margin / config.max_frequency
+    duty_cycle = minimum_frequency / config.max_frequency
 
     # Average power consumption (mW)
     power_consumption = energy_per_inference * config.sample_rate

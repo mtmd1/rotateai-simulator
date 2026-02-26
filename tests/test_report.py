@@ -24,14 +24,12 @@ def _make_config(**overrides):
     cfg.DMIPS_per_MHz = overrides.get('DMIPS_per_MHz', 1.5)
     cfg.uA_per_MHz = overrides.get('uA_per_MHz', 51.6)
     cfg.max_frequency = overrides.get('max_frequency', 160)
-    cfg.safety_margin = overrides.get('safety_margin', 1.5)
     cfg.to_dict.return_value = {
         'sample_rate': cfg.sample_rate,
         'voltage': cfg.voltage,
         'DMIPS_per_MHz': cfg.DMIPS_per_MHz,
         'uA_per_MHz': cfg.uA_per_MHz,
         'max_frequency': cfg.max_frequency,
-        'safety_margin': cfg.safety_margin,
     }
     return cfg
 
@@ -153,17 +151,17 @@ class TestDeriveMetrics:
     def test_known_values(self):
         '''Hand-calculated with:
         config: sample_rate=5, voltage=1.8, DMIPS_per_MHz=1.5, uA_per_MHz=51.6,
-                maximum_frequency=160, safety_margin=1.5
+                max_frequency=160
         benchmark: total_instructions=1_000_000, N=100
 
         instructions_per_inference = 1_000_000 / 100 = 10_000
 
-        minimum_frequency = (10_000 * 5 * 1.5) / (1.5 * 1e6) = 0.05 MHz
+        minimum_frequency = (10_000 * 5) / (1.5 * 1e6) = 1/30 MHz
 
         charge_per_inference = 51.6 * 10_000 / (1.5 * 1e6) = 0.344 uC
         energy_per_inference = 1.8 * 0.344 / 1e3 = 0.0006192 mJ
 
-        duty_cycle = (0.05 / 1.5) / 160 = 0.000208333...
+        duty_cycle = (1/30) / 160 = 0.000208333...
 
         power_consumption = 0.0006192 * 5 = 0.003096 mW
         '''
@@ -172,20 +170,10 @@ class TestDeriveMetrics:
         result = _make_result(100, benchmark=bench)
 
         min_freq, energy, duty, power = derive_metrics(config, result)
-        assert min_freq == pytest.approx(0.05)
+        assert min_freq == pytest.approx(1 / 30)
         assert energy == pytest.approx(0.0006192)
-        assert duty == pytest.approx(0.05 / 1.5 / 160)
+        assert duty == pytest.approx(1 / 30 / 160)
         assert power == pytest.approx(0.003096)
-
-    def test_higher_safety_margin_increases_frequency(self):
-        config_low = _make_config(safety_margin=1.0)
-        config_high = _make_config(safety_margin=2.0)
-        bench = _make_benchmark()
-        result = _make_result(100, benchmark=bench)
-
-        freq_low, _, _, _ = derive_metrics(config_low, result)
-        freq_high, _, _, _ = derive_metrics(config_high, result)
-        assert freq_high > freq_low
 
     def test_higher_sample_rate_increases_power(self):
         config_slow = _make_config(sample_rate=1)
@@ -219,8 +207,7 @@ class TestSaveReport:
                 'M': ground, 'A': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
 
-        report_path = str(tmp_path / 'test_report')
-        save_report(report_path, config, data, result)
+        save_report('test_report', config, data, result, tmp_path)
         assert (tmp_path / 'test_report.json').is_file()
 
     def test_json_structure(self, tmp_path):
@@ -230,8 +217,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
 
-        report_path = str(tmp_path / 'test_report')
-        save_report(report_path, config, data, result)
+        save_report('test_report', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -249,8 +235,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
-        report_path = str(tmp_path / 'test_report')
-        save_report(report_path, config, data, result)
+        save_report('test_report', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -267,8 +252,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
-        report_path = str(tmp_path / 'test_report')
-        save_report(report_path, config, data, result)
+        save_report('test_report', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -285,8 +269,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
-        report_path = str(tmp_path / 'test_report')
-        save_report(report_path, config, data, result)
+        save_report('test_report', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -303,8 +286,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=np.random.rand(n, 3), Aw=np.random.rand(n, 3))
 
-        report_path = str(tmp_path / 'test_report')
-        save_report(report_path, config, data, result)
+        save_report('test_report', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 

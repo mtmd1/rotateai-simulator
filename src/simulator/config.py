@@ -13,9 +13,6 @@ except ImportError:
 from pathlib import Path
 
 
-HERE = Path(__file__).parent.resolve()
-ROOT = HERE.parent.parent
-
 class Config:
     '''A configuration object.'''
 
@@ -29,39 +26,35 @@ class Config:
                 data = tomllib.load(f)
         except FileNotFoundError as e:
             print(f'Config file {config_path} not found.', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
         errors = self.validate(data)
 
         if not errors:
             values = self.extract_values(data)
-            (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.uA_per_MHz, self.max_frequency, self.safety_margin) = values
+            (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.uA_per_MHz, self.max_frequency) = values
         
         else:
             errors_str = '\n'.join(errors)
             print(f'Config file {config_path} has errors:\n{errors_str}', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
 
     def validate(self, config: dict) -> list[str]:
         '''Validate that a given config contains the necessary keys with valid values.'''
         errors: list[str] = []
         
-        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'safety_margin']:
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency']:
 
             value = self.get_nested_value(config, key)
-            
+
             if value is None:
                 errors.append(f'Missing variable {key}')
-            
+
             else:
                 try:
-                    if key == 'safety_margin':
-                        if value < 1:
-                            errors.append('safety_margin must be >= 1.0')
-                    else:
-                        if value <= 0:
-                            errors.append(f'{key} must be positive')
+                    if value <= 0:
+                        errors.append(f'{key} must be positive')
 
                 except TypeError:
                     errors.append(f'{key} must be a number')
@@ -73,7 +66,7 @@ class Config:
         '''Extract the expected keys recursively'''
         values: list[float | int] = []
         
-        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'safety_margin']:
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency']:
             values.append(self.get_nested_value(config, key))
         
         return tuple(values)
@@ -98,5 +91,4 @@ class Config:
             'DMIPS_per_MHz': self.DMIPS_per_MHz,
             'uA_per_MHz': self.uA_per_MHz,
             'max_frequency': self.max_frequency,
-            'safety_margin': self.safety_margin,
         }

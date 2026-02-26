@@ -4,12 +4,12 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'rotateai-simulator'
-version = '0.0.0'
+version = '1.0'
 description = 'A simulator for RotateAI model inference on virtual microcontroller environments'
 requires-python = '>=3.10'
 dependencies = [
     'scipy>=1.15',
-    'nump>=2.2',
+    'numpy>=2.2',
     'tqdm>=4.60',
     'tomli>=2.4; python_version < "3.11"',
 ]

@@ -10,8 +10,6 @@ import numpy as np
 import scipy.io as sio
 from pathlib import Path
 
-HERE = Path(__file__).parent.resolve()
-ROOT = HERE.parent.parent
 
 class Data:
     '''The top-level list of deployments to simulate against.'''
@@ -30,7 +28,7 @@ class Data:
                 mat_file = self.load_mat_file(data_path)
                 if not mat_file:
                     print(f'Data file {data_path}: unable to load.', file=sys.stderr)
-                    exit(1)
+                    sys.exit(1)
 
                 errors = self.validate(mat_file)
                 if not errors:
@@ -39,24 +37,24 @@ class Data:
                 else:
                     errors_str = '\n'.join(errors)
                     print(f'Data file {data_path} has errors:\n{errors_str}', file=sys.stderr)
-                    exit(1)
+                    sys.exit(1)
             else:
                 print(f'Data file {data_path} is not a .mat file.', file=sys.stderr)
-                exit(1)
+                sys.exit(1)
 
         elif data_path.is_dir():
             files = [file_path for file_path in data_path.rglob('*.mat')]
             if len(files) == 0:
                 print(f'Data directory {data_path} does not contain any .mat files.', file=sys.stderr)
-                exit(1)
+                sys.exit(1)
             else:
                 for file in files:
                     mat_file = self.load_mat_file(file)
                     if not mat_file:
-                        print(f'Data file {file}: unable to load.')
+                        print(f'Data file {file}: unable to load.', file=sys.stderr)
                         ignore = input('Ignore this file and continue? [Y/n] ')
                         if ''.join(ignore.lower().split()) in ['n', 'no']: # split-join removes all whitespace
-                            exit(1)
+                            sys.exit(1)
 
                     errors = self.validate(mat_file)
                     if not errors:
@@ -64,14 +62,14 @@ class Data:
                         self.batches.append(mat_file)
                     else:
                         errors_str = '\n'.join(errors)
-                        print(f'Data file {file} has errors:\n{errors_str}')
+                        print(f'Data file {file} has errors:\n{errors_str}', file=sys.stderr)
                         ignore = input('Ignore this file and continue? [Y/n] ')
                         if ''.join(ignore.lower().split()) in ['n', 'no']:
-                            exit(1)
+                            sys.exit(1)
 
         else:
             print(f'Data path {data_path} not found.', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
     
     def __iter__(self):

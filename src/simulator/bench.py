@@ -27,7 +27,7 @@ class Benchmarker:
             perf_events = self.get_perf_events()
         except Exception as e:
             print(f'Failed to get perf events: {e}.', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
         self.validate_perf_events(perf_events)
 
@@ -70,7 +70,7 @@ class Benchmarker:
         )
         if 'event syntax error' in result.stderr.lower() or '<not supported>' in result.stderr.lower():
             print(f'Perf events not supported: {perf_events}.', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
 
     def open_perf_process(self, process_pid: int, perf_events: str) -> subprocess.Popen:        
@@ -84,11 +84,11 @@ class Benchmarker:
 
         except FileNotFoundError:
             print(f'perf is not installed.', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
         except PermissionError:
             print('Permission denied to run perf. Elevated privileges are required.', file=sys.stderr)
-            exit(1)
+            sys.exit(1)
 
 
     def collect(self) -> None:
