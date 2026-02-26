@@ -45,12 +45,12 @@ class Benchmarker:
                 text=True
             ).stdout
 
-            if 'GenuineIntel' in cpu_info: 
+            if 'GenuineIntel' in cpu_info:
                 # Intel
-                return 'instructions,fp_arith_inst_retired.128b_packed_single'
-            elif 'AuthenticAMD' in cpu_info: 
+                return 'instructions,fp_arith_inst_retired.scalar_single,fp_arith_inst_retired.scalar_double,fp_arith_inst_retired.128b_packed_single,fp_arith_inst_retired.128b_packed_double,fp_arith_inst_retired.256b_packed_single,fp_arith_inst_retired.256b_packed_double'
+            elif 'AuthenticAMD' in cpu_info:
                 # AMD
-                return 'instructions,fp_ret_sse_avx_ops.double'
+                return 'instructions,fp_ret_sse_avx_ops.single,fp_ret_sse_avx_ops.double'
             else:
                 return 'instructions'
         

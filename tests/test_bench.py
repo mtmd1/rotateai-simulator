@@ -81,7 +81,7 @@ PERF_STDERR_NOT_SUPPORTED = '''\
 '''
 
 PERF_STDERR_SYNTAX_ERROR = '''\
-event syntax error: 'instructions,fp_ret_sse_avx_ops.double'
+event syntax error: 'instructions,fp_ret_sse_avx_ops.single,fp_ret_sse_avx_ops.double'
                                   \\___ Bad event name
 
 Unable to find event on a PMU of 'fp_ret_sse_avx_ops.double'
@@ -121,11 +121,11 @@ class TestGetPerfEvents:
 
     def test_intel_x86_64(self):
         events = self._get_events('x86_64', 'vendor_id\t: GenuineIntel')
-        assert events == 'instructions,fp_arith_inst_retired.scalar_double'
+        assert events == 'instructions,fp_arith_inst_retired.scalar_single,fp_arith_inst_retired.scalar_double,fp_arith_inst_retired.128b_packed_single,fp_arith_inst_retired.128b_packed_double,fp_arith_inst_retired.256b_packed_single,fp_arith_inst_retired.256b_packed_double'
 
     def test_amd_x86_64(self):
         events = self._get_events('x86_64', 'vendor_id\t: AuthenticAMD')
-        assert events == 'instructions,fp_ret_sse_avx_ops.double'
+        assert events == 'instructions,fp_ret_sse_avx_ops.single,fp_ret_sse_avx_ops.double'
 
     def test_unknown_x86_64(self):
         events = self._get_events('x86_64', 'vendor_id\t: SomethingElse')
@@ -133,11 +133,11 @@ class TestGetPerfEvents:
 
     def test_i386(self):
         events = self._get_events('i386', 'vendor_id\t: GenuineIntel')
-        assert events == 'instructions,fp_arith_inst_retired.scalar_double'
+        assert events == 'instructions,fp_arith_inst_retired.scalar_single,fp_arith_inst_retired.scalar_double,fp_arith_inst_retired.128b_packed_single,fp_arith_inst_retired.128b_packed_double,fp_arith_inst_retired.256b_packed_single,fp_arith_inst_retired.256b_packed_double'
 
     def test_i686(self):
         events = self._get_events('i686', 'vendor_id\t: AuthenticAMD')
-        assert events == 'instructions,fp_ret_sse_avx_ops.double'
+        assert events == 'instructions,fp_ret_sse_avx_ops.single,fp_ret_sse_avx_ops.double'
 
     def test_aarch64(self):
         events = self._get_events('aarch64')
@@ -162,7 +162,7 @@ class TestValidatePerfEvents:
         with patch('simulator.bench.subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(stderr=PERF_STDERR_SYNTAX_ERROR)
             with pytest.raises(SystemExit):
-                b.validate_perf_events('instructions,fp_ret_sse_avx_ops.double')
+                b.validate_perf_events('instructions,fp_ret_sse_avx_ops.single,fp_ret_sse_avx_ops.double')
 
     def test_not_supported_exits(self):
         b = _make_benchmarker()
@@ -175,7 +175,7 @@ class TestValidatePerfEvents:
         b = _make_benchmarker()
         with patch('simulator.bench.subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(stderr=PERF_STDERR_SIMPLE)
-            b.validate_perf_events('instructions,fp_arith_inst_retired.scalar_double')
+            b.validate_perf_events('instructions,fp_arith_inst_retired.scalar_single,fp_arith_inst_retired.scalar_double,fp_arith_inst_retired.128b_packed_single,fp_arith_inst_retired.128b_packed_double,fp_arith_inst_retired.256b_packed_single,fp_arith_inst_retired.256b_packed_double')
 
 
 # MARK: open_perf_process
@@ -278,6 +278,31 @@ class TestCollect:
 
         assert b.total_instructions == 300_000
         assert b.total_flops == 10_000
+
+    def test_multiple_fp_event_types_sum(self):
+        '''Multiple fp event types (scalar, packed) should all sum into total_flops.'''
+        stderr = '''\
+
+ Performance counter stats for 'target':
+
+         5,000,000      instructions
+            10,000      fp_arith_inst_retired.scalar_single
+             5,000      fp_arith_inst_retired.scalar_double
+            80,000      fp_arith_inst_retired.128b_packed_single
+             2,000      fp_arith_inst_retired.128b_packed_double
+                 0      fp_arith_inst_retired.256b_packed_single
+                 0      fp_arith_inst_retired.256b_packed_double
+
+       0.010000000 seconds time elapsed
+
+'''
+        b = _make_benchmarker(perf=_mock_perf(stderr))
+        with patch('simulator.bench.resource.getrusage') as mock_rusage:
+            mock_rusage.return_value = MagicMock(ru_maxrss=4096, ru_utime=0.01, ru_stime=0.0)
+            b.collect()
+
+        assert b.total_instructions == 5_000_000
+        assert b.total_flops == 97_000  # 10000 + 5000 + 80000 + 2000
 
     def test_no_perf_process(self):
         '''collect() with perf=None should still set peak_memory.'''
