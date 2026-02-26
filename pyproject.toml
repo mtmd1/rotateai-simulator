@@ -9,6 +9,7 @@ description = 'A simulator for RotateAI model inference on virtual microcontroll
 requires-python = '>=3.10'
 dependencies = [
     'scipy>=1.15',
+    'nump>=2.2',
     'tqdm>=4.60',
     'tomli>=2.4; python_version < "3.11"',
 ]

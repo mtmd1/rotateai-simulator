@@ -193,6 +193,11 @@ class TestInitSingleFile:
         assert len(d.batches) == 1
         assert 'A' in d.batches[0]
 
+    def test_source_key_set(self, valid_mat):
+        d = Data(valid_mat)
+        assert '_source' in d.batches[0]
+        assert d.batches[0]['_source'] == 'valid.mat'
+
     def test_nonexistent_path_exits(self, tmp_path):
         with pytest.raises(SystemExit):
             Data(str(tmp_path / 'does_not_exist.mat'))
@@ -222,6 +227,11 @@ class TestInitDirectory:
     def test_loads_all_files(self, valid_mat_dir):
         d = Data(valid_mat_dir)
         assert len(d.batches) == 3
+
+    def test_source_keys_set_from_filenames(self, valid_mat_dir):
+        d = Data(valid_mat_dir)
+        sources = sorted(b['_source'] for b in d.batches)
+        assert sources == ['file_0.mat', 'file_1.mat', 'file_2.mat']
 
     def test_empty_directory_exits(self, tmp_path):
         empty = tmp_path / 'empty'

@@ -23,12 +23,14 @@ def _make_config(**overrides):
     cfg.voltage = overrides.get('voltage', 1.8)
     cfg.DMIPS_per_MHz = overrides.get('DMIPS_per_MHz', 1.5)
     cfg.uA_per_MHz = overrides.get('uA_per_MHz', 51.6)
+    cfg.max_frequency = overrides.get('max_frequency', 160)
     cfg.safety_margin = overrides.get('safety_margin', 1.5)
     cfg.to_dict.return_value = {
         'sample_rate': cfg.sample_rate,
         'voltage': cfg.voltage,
         'DMIPS_per_MHz': cfg.DMIPS_per_MHz,
         'uA_per_MHz': cfg.uA_per_MHz,
+        'max_frequency': cfg.max_frequency,
         'safety_margin': cfg.safety_margin,
     }
     return cfg
@@ -150,21 +152,20 @@ class TestDeriveMetrics:
 
     def test_known_values(self):
         '''Hand-calculated with:
-        config: sample_rate=5, voltage=1.8, DMIPS_per_MHz=1.5, uA_per_MHz=51.6, safety_margin=1.5
-        benchmark: total_instructions=1_000_000, cpu_time=0.5, N=100
+        config: sample_rate=5, voltage=1.8, DMIPS_per_MHz=1.5, uA_per_MHz=51.6,
+                maximum_frequency=160, safety_margin=1.5
+        benchmark: total_instructions=1_000_000, N=100
 
         instructions_per_inference = 1_000_000 / 100 = 10_000
 
-        minimum_frequency = (10_000 * 5 * 1.5) / (1.5 * 1e6) = 75_000 / 1_500_000 = 0.05 MHz
+        minimum_frequency = (10_000 * 5 * 1.5) / (1.5 * 1e6) = 0.05 MHz
 
-        charge_per_inference = 51.6 * 10_000 / (1.5 * 1e6) = 516_000 / 1_500_000 = 0.344 uC
-        energy_per_inference = 1.8 * 0.344 = 0.6192 uJ
+        charge_per_inference = 51.6 * 10_000 / (1.5 * 1e6) = 0.344 uC
+        energy_per_inference = 1.8 * 0.344 / 1e3 = 0.0006192 mJ
 
-        time_per_inference = 0.5 / 100 = 0.005 s
-        sample_period = 1 / 5 = 0.2 s
-        duty_cycle = 0.005 / 0.2 = 0.025
+        duty_cycle = (0.05 / 1.5) / 160 = 0.000208333...
 
-        power_consumption = 0.6192 * 5 = 3.096 uW
+        power_consumption = 0.0006192 * 5 = 0.003096 mW
         '''
         config = _make_config()
         bench = _make_benchmark(total_instructions=1_000_000, cpu_time=0.5)
@@ -172,9 +173,9 @@ class TestDeriveMetrics:
 
         min_freq, energy, duty, power = derive_metrics(config, result)
         assert min_freq == pytest.approx(0.05)
-        assert energy == pytest.approx(0.6192)
-        assert duty == pytest.approx(0.025)
-        assert power == pytest.approx(3.096)
+        assert energy == pytest.approx(0.0006192)
+        assert duty == pytest.approx(0.05 / 1.5 / 160)
+        assert power == pytest.approx(0.003096)
 
     def test_higher_safety_margin_increases_frequency(self):
         config_low = _make_config(safety_margin=1.0)
@@ -196,9 +197,9 @@ class TestDeriveMetrics:
         _, _, _, power_fast = derive_metrics(config_fast, result)
         assert power_fast > power_slow
 
-    def test_zero_cpu_time_gives_zero_duty_cycle(self):
+    def test_zero_instructions_gives_zero_duty_cycle(self):
         config = _make_config()
-        bench = _make_benchmark(cpu_time=0.0)
+        bench = _make_benchmark(total_instructions=0)
         result = _make_result(100, benchmark=bench)
 
         _, _, duty, _ = derive_metrics(config, result)
@@ -215,7 +216,7 @@ class TestSaveReport:
         n = 10
         ground = np.random.rand(n, 3)
         data = {'Mw': ground, 'Aw': ground, 'p': np.random.rand(n),
-                'M': ground, 'A': ground}
+                'M': ground, 'A': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
 
         report_path = str(tmp_path / 'test_report')
@@ -226,7 +227,7 @@ class TestSaveReport:
         config = _make_config()
         n = 10
         ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground}
+        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
 
         report_path = str(tmp_path / 'test_report')
@@ -235,6 +236,7 @@ class TestSaveReport:
             report = json.load(f)
 
         assert 'name' in report
+        assert 'data_file' in report
         assert 'config' in report
         assert 'benchmark' in report
         assert 'derived' in report
@@ -244,7 +246,7 @@ class TestSaveReport:
         config = _make_config()
         n = 10
         ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground}
+        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
         report_path = str(tmp_path / 'test_report')
@@ -253,7 +255,7 @@ class TestSaveReport:
             report = json.load(f)
 
         bench = report['benchmark']
-        assert 'file_size_bytes' in bench
+        assert 'file_size_KB' in bench
         assert 'peak_memory_KB' in bench
         assert 'instructions_per_inference' in bench
         assert 'FLOPS_per_inference' in bench
@@ -262,7 +264,7 @@ class TestSaveReport:
         config = _make_config()
         n = 10
         ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground}
+        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
         report_path = str(tmp_path / 'test_report')
@@ -272,15 +274,15 @@ class TestSaveReport:
 
         derived = report['derived']
         assert 'minimum_operating_frequency_MHz' in derived
-        assert 'energy_per_inference_uJ' in derived
-        assert 'duty_cycle_ratio' in derived
-        assert 'power_consumption_uW' in derived
+        assert 'energy_per_inference_mJ' in derived
+        assert 'duty_cycle' in derived
+        assert 'power_consumption_mW' in derived
 
     def test_error_keys(self, tmp_path):
         config = _make_config()
         n = 10
         ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground}
+        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
         report_path = str(tmp_path / 'test_report')
@@ -289,16 +291,16 @@ class TestSaveReport:
             report = json.load(f)
 
         error = report['error']
-        assert 'MAE_Mw' in error
-        assert 'RMSE_Mw' in error
-        assert 'MAE_Aw' in error
-        assert 'RMSE_Aw' in error
+        assert 'MAE_Mw_uT' in error
+        assert 'RMSE_Mw_uT' in error
+        assert 'MAE_Aw_g' in error
+        assert 'RMSE_Aw_g' in error
 
     def test_error_values_are_3_element_lists(self, tmp_path):
         config = _make_config()
         n = 10
         ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground}
+        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=np.random.rand(n, 3), Aw=np.random.rand(n, 3))
 
         report_path = str(tmp_path / 'test_report')
@@ -306,6 +308,6 @@ class TestSaveReport:
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
-        for key in ['MAE_Mw', 'RMSE_Mw', 'MAE_Aw', 'RMSE_Aw']:
+        for key in ['MAE_Mw_uT', 'RMSE_Mw_uT', 'MAE_Aw_g', 'RMSE_Aw_g']:
             assert isinstance(report['error'][key], list)
             assert len(report['error'][key]) == 3

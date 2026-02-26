@@ -13,6 +13,17 @@ from simulator.config import Config
 from simulator.runner import SimResult
 
 
+def r(value, sigfigs=3):
+    '''Round a value or numpy array to a given number of significant figures.'''
+    if isinstance(value, np.ndarray):
+        return [r(v, sigfigs) for v in value]
+    value = float(value)
+    if value == 0:
+        return 0.0
+    digits = -int(np.floor(np.log10(abs(value)))) + (sigfigs - 1)
+    return round(value, digits)
+
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -25,7 +36,7 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: SimResult) -> None:
-    '''Calculate derived estimates, error, and save them with 
+    '''Calculate derived estimates, error, and save them with
     the benchmarking statistics as a JSON report.'''
     (minimum_frequency,
      energy_per_inference,
@@ -39,24 +50,26 @@ def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: 
 
     report = {
         'name': name,
+        'data_file': data['_source'],
         'config': config.to_dict(),
         'benchmark': {
-            'file_size_bytes': result.benchmark.file_size,
+            'file_size_KB': r(result.benchmark.file_size / 1024),
             'peak_memory_KB': result.benchmark.peak_memory,
-            'instructions_per_inference': result.benchmark.total_instructions / result.N,
-            'FLOPS_per_inference': result.benchmark.total_flops / result.N
+            'instructions_per_inference': int(result.benchmark.total_instructions / result.N),
+            'FLOPS_per_inference': int(result.benchmark.total_flops / result.N)
         },
         'derived': {
-            'minimum_operating_frequency_MHz': minimum_frequency,
-            'energy_per_inference_uJ': energy_per_inference,
-            'duty_cycle_ratio': duty_cycle,
-            'power_consumption_uW': power_consumption
+            'minimum_operating_frequency_MHz': r(minimum_frequency),
+            'energy_per_inference_mJ': r(energy_per_inference),
+            'duty_cycle': r(duty_cycle),
+            'power_consumption_mW': r(power_consumption)
         },
-        'error': { 
-            'MAE_Mw': mae_mw, 
-            'RMSE_Mw': rmse_mw, 
-            'MAE_Aw': mae_aw, 
-            'RMSE_Aw': rmse_aw}
+        'error': {
+            'MAE_Mw_uT': r(mae_mw),
+            'RMSE_Mw_uT': r(rmse_mw),
+            'MAE_Aw_g': r(mae_aw),
+            'RMSE_Aw_g': r(rmse_aw)
+        }
     }
     with open(f'{name}.json', 'w') as f:
         json.dump(report, f, indent=4, cls=NumpyEncoder)
@@ -64,23 +77,21 @@ def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: 
     
 def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     '''Return the estimated values derived as shown in docs/derivations.pdf.'''
-    # TODO: write docs/derivations.pdf
 
     instructions_per_inference = result.benchmark.total_instructions / result.N
 
-    # Minimum operating frequency
+    # Minimum operating frequency (MHz) for duty cycle = 1
     minimum_frequency = (instructions_per_inference * config.sample_rate * config.safety_margin) / (config.DMIPS_per_MHz * 1e6)
 
-    # Energy per inference
+    # Energy per inference (mJ) — frequency-independent within a voltage range
     charge_per_inference = config.uA_per_MHz * instructions_per_inference / (config.DMIPS_per_MHz * 1e6)
-    energy_per_inference = config.voltage * charge_per_inference
+    energy_per_inference = config.voltage * charge_per_inference / 1e3
 
-    # Duty cycle
-    time_per_inference = result.benchmark.cpu_time / result.N
-    sample_period = 1 / config.sample_rate
-    duty_cycle = time_per_inference / sample_period
-    
-    # Power consumption
+    # Duty cycle at maximum operating frequency
+    min_freq_no_margin = minimum_frequency / config.safety_margin
+    duty_cycle = min_freq_no_margin / config.max_frequency
+
+    # Average power consumption (mW)
     power_consumption = energy_per_inference * config.sample_rate
 
     return (minimum_frequency, energy_per_inference, duty_cycle, power_consumption)

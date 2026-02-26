@@ -33,7 +33,7 @@ def simulate(args):
     config = Config(args.config)
     data = Data(args.data)
     simulator = Simulator(args.binary)
-    report_prefix = f'simreport_{args.binary.split("/")[-1]}_{args.data.split("/")[-1].split(".")[0]}'
+    report_prefix = f'simreport_{args.binary.split("/")[-1]}'
 
     for i, batch in enumerate(data):
         result = simulator.run(batch, progress=partial(tqdm, desc=f'Batch {i + 1}/{len(data)}'))

@@ -23,6 +23,7 @@ class Data:
             data_path = Path.cwd() / data_path_str
 
         self.batches = []
+        self.names = []
         
         if data_path.is_file():
             if data_path.suffix == '.mat':
@@ -33,6 +34,7 @@ class Data:
 
                 errors = self.validate(mat_file)
                 if not errors:
+                    mat_file['_source'] = str(data_path).split('/')[-1]
                     self.batches = [mat_file]
                 else:
                     errors_str = '\n'.join(errors)
@@ -58,6 +60,7 @@ class Data:
 
                     errors = self.validate(mat_file)
                     if not errors:
+                        mat_file['_source'] = file.name
                         self.batches.append(mat_file)
                     else:
                         errors_str = '\n'.join(errors)

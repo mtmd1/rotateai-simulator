@@ -35,7 +35,7 @@ class Config:
 
         if not errors:
             values = self.extract_values(data)
-            (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.uA_per_MHz, self.safety_margin) = values
+            (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.uA_per_MHz, self.max_frequency, self.safety_margin) = values
         
         else:
             errors_str = '\n'.join(errors)
@@ -47,7 +47,7 @@ class Config:
         '''Validate that a given config contains the necessary keys with valid values.'''
         errors: list[str] = []
         
-        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'safety_margin']:
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'safety_margin']:
 
             value = self.get_nested_value(config, key)
             
@@ -73,7 +73,7 @@ class Config:
         '''Extract the expected keys recursively'''
         values: list[float | int] = []
         
-        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'safety_margin']:
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'safety_margin']:
             values.append(self.get_nested_value(config, key))
         
         return tuple(values)
@@ -97,5 +97,6 @@ class Config:
             'voltage': self.voltage,
             'DMIPS_per_MHz': self.DMIPS_per_MHz,
             'uA_per_MHz': self.uA_per_MHz,
+            'max_frequency': self.max_frequency,
             'safety_margin': self.safety_margin,
         }
