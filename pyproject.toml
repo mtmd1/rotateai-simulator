@@ -3,7 +3,7 @@ requires = ['setuptools>=45', 'wheel']
 build-backend = 'setuptools.build_meta'
 
 [project]
-name = 'rotateai-simulator'
+name = 'simulator'
 version = '1.0'
 description = 'A simulator for RotateAI model inference on virtual microcontroller environments'
 requires-python = '>=3.10'
@@ -17,6 +17,8 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     'pytest>=7.0',
+    'pytest-cov>=7.0',
+    'coverage>=7.13',
 ]
 
 [project.scripts]
