@@ -104,6 +104,12 @@ class TestE2EBenchmark:
     def test_has_flops(self, report):
         assert isinstance(report['benchmark']['FLOPS_per_inference'], int)
 
+    def test_has_output_count(self, report):
+        assert report['benchmark']['output_count'] > 0
+
+    def test_has_output_ratio(self, report):
+        assert report['benchmark']['output_ratio'] == 1.0
+
 
 # MARK: derived
 

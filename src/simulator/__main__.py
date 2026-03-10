@@ -55,7 +55,7 @@ def simulate(args):
     '''Load the config, data and binary and run the full simulation.'''
     config = Config(args.config)
     data = Data(args.data)
-    simulator = Simulator(args.binary)
+    simulator = Simulator(args.binary, cmdline=config.cmdline)
     output_path = validate_output_path(args.output)
 
     report_prefix = f'simreport_{args.binary.split("/")[-1]}'

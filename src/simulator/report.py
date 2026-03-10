@@ -58,19 +58,21 @@ def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: 
             'file_size_KB': r(result.benchmark.file_size / 1024),
             'peak_memory_KB': result.benchmark.peak_memory,
             'instructions_per_inference': int(result.benchmark.total_instructions / result.N),
-            'FLOPS_per_inference': int(result.benchmark.total_flops / result.N)
+            'FLOPS_per_inference': int(result.benchmark.total_flops / result.N),
+            'output_count': result.output_count,
+            'output_ratio': r(result.output_ratio),
         },
         'derived': {
             'minimum_operating_frequency_MHz': r(minimum_frequency),
             'energy_per_inference_mJ': r(energy_per_inference),
             'duty_cycle': r(duty_cycle),
-            'power_consumption_mW': r(power_consumption)
+            'power_consumption_mW': r(power_consumption),
         },
         'error': {
             'MAE_Mw_uT': r(mae_mw),
             'RMSE_Mw_uT': r(rmse_mw),
             'MAE_Aw_g': r(mae_aw),
-            'RMSE_Aw_g': r(rmse_aw)
+            'RMSE_Aw_g': r(rmse_aw),
         }
     }
     with open(output_path / f'{name}.json', 'w') as f:
@@ -99,9 +101,9 @@ def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     
 
 def calculate_errors(data: dict[str, np.ndarray], result: SimResult) -> tuple[tuple[float]]:
-    '''Return the MAE and RMSE values for Aw and Mw.'''
-    ground_Mw = data['Mw']
-    ground_Aw = data['Aw']
+    '''Return the MAE and RMSE values for Aw and Mw, aligned by output indices.'''
+    ground_Mw = data['Mw'][result.output_indices]
+    ground_Aw = data['Aw'][result.output_indices]
 
     predicted_Mw = result.Mw
     predicted_Aw = result.Aw

@@ -64,7 +64,7 @@ class TestSimulate:
 
         MockConfig.assert_called_once_with('config.toml')
         MockData.assert_called_once_with('data/')
-        MockSimulator.assert_called_once_with('path/to/inference')
+        MockSimulator.assert_called_once_with('path/to/inference', cmdline=MockConfig.return_value.cmdline)
 
     @patch('simulator.__main__.save_report')
     @patch('simulator.__main__.Simulator')

@@ -65,6 +65,7 @@ class TestSimulateWithRepeater:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -80,6 +81,7 @@ class TestSimulateWithRepeater:
         n = len(batch['p'])
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -98,6 +100,7 @@ class TestSimulateWithRepeater:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -123,6 +126,7 @@ class TestErrorWithRepeater:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -140,6 +144,7 @@ class TestErrorWithRepeater:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -163,6 +168,7 @@ class TestReportGeneration:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -182,6 +188,7 @@ class TestReportGeneration:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -201,6 +208,7 @@ class TestReportGeneration:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -221,6 +229,7 @@ class TestReportGeneration:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -243,6 +252,7 @@ class TestReportGeneration:
         batch = d.batches[0]
         sim = object.__new__(Simulator)
         sim.binary = repeater
+        sim.cmdline = None
 
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
@@ -255,3 +265,63 @@ class TestReportGeneration:
         assert report['config']['sample_rate'] == 5
         assert report['config']['voltage'] == 1.8
         assert report['config']['max_frequency'] == 160
+
+    def test_report_has_output_count(self, repeater, config, tmp_path):
+        if not TINY_MAT.is_file():
+            pytest.skip('tiny mat fixture not found')
+        d = Data(str(TINY_MAT))
+        batch = d.batches[0]
+        sim = object.__new__(Simulator)
+        sim.binary = repeater
+        sim.cmdline = None
+
+        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
+            result = sim.run(batch)
+
+        save_report('integration_report', config, batch, result, tmp_path)
+
+        with open(tmp_path / 'integration_report.json') as f:
+            report = json.load(f)
+
+        assert report['benchmark']['output_count'] == len(batch['p'])
+        assert report['benchmark']['output_ratio'] == 1.0
+
+
+# MARK: skipper
+
+class TestSimulateWithSkipper:
+    '''Run the skipper binary against real data (sparse output).'''
+
+    def test_output_count_is_half(self, skipper):
+        if not TINY_MAT.is_file():
+            pytest.skip('tiny mat fixture not found')
+        d = Data(str(TINY_MAT))
+        batch = d.batches[0]
+        n = len(batch['p'])
+        sim = object.__new__(Simulator)
+        sim.binary = skipper
+        sim.cmdline = None
+
+        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
+            result = sim.run(batch)
+
+        assert result.output_count == n // 2
+        assert result.Mw.shape == (n // 2, 3)
+        assert result.Aw.shape == (n // 2, 3)
+
+    def test_error_alignment_with_sparse_output(self, skipper):
+        '''Errors should align ground truth by output indices.'''
+        if not TINY_MAT.is_file():
+            pytest.skip('tiny mat fixture not found')
+        d = Data(str(TINY_MAT))
+        batch = d.batches[0]
+        sim = object.__new__(Simulator)
+        sim.binary = skipper
+        sim.cmdline = None
+
+        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
+            result = sim.run(batch)
+
+        mae_mw, mae_aw, rmse_mw, rmse_aw = calculate_errors(batch, result)
+        assert mae_mw.shape == (3,)
+        assert np.all(rmse_mw >= mae_mw)

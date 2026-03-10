@@ -45,7 +45,7 @@ def _make_benchmark(**overrides):
     return bench
 
 
-def _make_result(N: int, benchmark=None, Mw=None, Aw=None) -> SimResult:
+def _make_result(N: int, benchmark=None, Mw=None, Aw=None, output_indices=None) -> SimResult:
     '''Create a SimResult with controlled data.'''
     result = SimResult(N)
     result.benchmark = benchmark or _make_benchmark()
@@ -53,6 +53,8 @@ def _make_result(N: int, benchmark=None, Mw=None, Aw=None) -> SimResult:
         result.Mw = Mw
     if Aw is not None:
         result.Aw = Aw
+    result.output_indices = output_indices if output_indices is not None else list(range(N))
+    result.sample_index = len(result.output_indices)
     return result
 
 
@@ -141,6 +143,19 @@ class TestCalculateErrors:
         result = _make_result(n, Mw=predicted, Aw=predicted)
         mae_mw, _, rmse_mw, _ = calculate_errors(data, result)
         assert np.all(rmse_mw >= mae_mw)
+
+    def test_errors_with_sparse_output(self):
+        '''When only indices [1, 3] produce output, errors computed against those rows.'''
+        ground_Mw = np.array([[10.0, 20.0, 30.0],  # index 0 - skipped
+                              [1.0, 2.0, 3.0],      # index 1 - output
+                              [40.0, 50.0, 60.0],    # index 2 - skipped
+                              [4.0, 5.0, 6.0]])      # index 3 - output
+        predicted_Mw = np.array([[1.0, 2.0, 3.0],   # matches index 1
+                                 [4.0, 5.0, 6.0]])   # matches index 3
+        data = {'Mw': ground_Mw, 'Aw': ground_Mw}
+        result = _make_result(4, Mw=predicted_Mw, Aw=predicted_Mw, output_indices=[1, 3])
+        mae_mw, _, _, _ = calculate_errors(data, result)
+        np.testing.assert_array_equal(mae_mw, [0.0, 0.0, 0.0])
 
 
 # MARK: derive_metrics
@@ -244,6 +259,36 @@ class TestSaveReport:
         assert 'peak_memory_KB' in bench
         assert 'instructions_per_inference' in bench
         assert 'FLOPS_per_inference' in bench
+        assert 'output_count' in bench
+        assert 'output_ratio' in bench
+
+    def test_benchmark_output_count(self, tmp_path):
+        config = _make_config()
+        n = 10
+        ground = np.random.rand(n, 3)
+        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
+        result = _make_result(n, Mw=ground, Aw=ground)
+
+        save_report('test_report', config, data, result, tmp_path)
+        with open(tmp_path / 'test_report.json') as f:
+            report = json.load(f)
+
+        assert report['benchmark']['output_count'] == 10
+        assert report['benchmark']['output_ratio'] == 1.0
+
+    def test_benchmark_output_count_sparse(self, tmp_path):
+        config = _make_config()
+        ground = np.random.rand(10, 3)
+        predicted = np.random.rand(3, 3)
+        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
+        result = _make_result(10, Mw=predicted, Aw=predicted, output_indices=[1, 5, 9])
+
+        save_report('test_report', config, data, result, tmp_path)
+        with open(tmp_path / 'test_report.json') as f:
+            report = json.load(f)
+
+        assert report['benchmark']['output_count'] == 3
+        assert report['benchmark']['output_ratio'] == pytest.approx(0.3)
 
     def test_derived_keys(self, tmp_path):
         config = _make_config()

@@ -33,7 +33,8 @@ class Config:
         if not errors:
             values = self.extract_values(data)
             (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.uA_per_MHz, self.max_frequency) = values
-        
+            self.cmdline = self.get_nested_value(data, 'cmdline')
+
         else:
             errors_str = '\n'.join(errors)
             print(f'Config file {config_path} has errors:\n{errors_str}', file=sys.stderr)
@@ -85,10 +86,13 @@ class Config:
     
     def to_dict(self) -> dict[str, float | int]:
         '''Return the config values as a flat dict.'''
-        return {
+        d = {
             'sample_rate': self.sample_rate,
             'voltage': self.voltage,
             'DMIPS_per_MHz': self.DMIPS_per_MHz,
             'uA_per_MHz': self.uA_per_MHz,
             'max_frequency': self.max_frequency,
         }
+        if self.cmdline is not None:
+            d['cmdline'] = self.cmdline
+        return d
