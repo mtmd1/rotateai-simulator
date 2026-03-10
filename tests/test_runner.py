@@ -138,9 +138,9 @@ class TestSimulatorRun:
 
     def test_repeater_echoes_input(self, repeater):
         '''Repeater reads 7 float32s and writes back the first 6.
-        Input is: p mx my mz ax ay az
-        Output is: p mx my mz ax ay
-        So Aw gets (p, mx, my) and Mw gets (mz, ax, ay).
+        Input is: ax ay az mx my mz p
+        Output is: ax ay az mx my mz
+        So Aw gets (ax, ay, az) and Mw gets (mx, my, mz).
         Values go through float64->float32->float64 so we use atol for precision.'''
         sim = _make_simulator(repeater)
         n = 5
@@ -149,10 +149,10 @@ class TestSimulatorRun:
             result = sim.run(data)
 
         for i in range(n):
-            expected_aw = np.float32([data['p'][i], data['M'][i][0], data['M'][i][1]])
-            expected_mw = np.float32([data['M'][i][2], data['A'][i][0], data['A'][i][1]])
-            np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
+            expected_aw = np.float32([data['A'][i][0], data['A'][i][1], data['A'][i][2]])
+            expected_mw = np.float32([data['M'][i][0], data['M'][i][1], data['M'][i][2]])
             np.testing.assert_allclose(result.Aw[i], expected_aw, atol=1e-7)
+            np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
 
     def test_run_single_step(self, repeater):
         sim = _make_simulator(repeater)
@@ -216,7 +216,7 @@ class TestSimulatorRunSkipper:
             result = sim.run(data)
 
         for out_idx, in_idx in enumerate(result.output_indices):
-            expected_aw = np.float32([data['p'][in_idx], data['M'][in_idx][0], data['M'][in_idx][1]])
-            expected_mw = np.float32([data['M'][in_idx][2], data['A'][in_idx][0], data['A'][in_idx][1]])
-            np.testing.assert_allclose(result.Mw[out_idx], expected_mw, atol=1e-7)
+            expected_aw = np.float32([data['A'][in_idx][0], data['A'][in_idx][1], data['A'][in_idx][2]])
+            expected_mw = np.float32([data['M'][in_idx][0], data['M'][in_idx][1], data['M'][in_idx][2]])
             np.testing.assert_allclose(result.Aw[out_idx], expected_aw, atol=1e-7)
+            np.testing.assert_allclose(result.Mw[out_idx], expected_mw, atol=1e-7)

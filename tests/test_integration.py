@@ -91,9 +91,9 @@ class TestSimulateWithRepeater:
 
     def test_repeater_echoes_values(self, repeater):
         '''Repeater writes back the first 6 of 7 input floats.
-        Input:  p mx my mz ax ay az
-        Output: p mx my mz ax ay
-        So Aw = (p, mx, my) and Mw = (mz, ax, ay).'''
+        Input:  ax ay az mx my mz p
+        Output: ax ay az mx my mz
+        So Aw = (ax, ay, az) and Mw = (mx, my, mz).'''
         if not TINY_MAT.is_file():
             pytest.skip('tiny mat fixture not found')
         d = Data(str(TINY_MAT))
@@ -106,10 +106,10 @@ class TestSimulateWithRepeater:
             result = sim.run(batch)
 
         for i in range(len(batch['p'])):
-            expected_aw = np.float32([batch['p'][i], batch['M'][i][0], batch['M'][i][1]])
-            expected_mw = np.float32([batch['M'][i][2], batch['A'][i][0], batch['A'][i][1]])
-            np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
+            expected_aw = np.float32([batch['A'][i][0], batch['A'][i][1], batch['A'][i][2]])
+            expected_mw = np.float32([batch['M'][i][0], batch['M'][i][1], batch['M'][i][2]])
             np.testing.assert_allclose(result.Aw[i], expected_aw, atol=1e-7)
+            np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
 
 
 # MARK: error calculation

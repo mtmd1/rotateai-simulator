@@ -60,7 +60,7 @@ See `docs/derivations.pdf` for how derived metrics are estimated.
 
 The inference binary communicates over stdin/stdout in lock-step. For each input sample:
 
-- **Input**: 7 float32s — `p, mx, my, mz, ax, ay, az` (28 bytes)
+- **Input**: 7 float32s — `ax, ay, az, mx, my, mz, p` (28 bytes)
 - **Flag byte**: 1 byte — `0x01` if output follows, `0x00` if no output for this sample
 - **Output** (only when flag is `0x01`): 6 float32s — `awx, awy, awz, mwx, mwy, mwz` (24 bytes)
 

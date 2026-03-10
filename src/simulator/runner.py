@@ -99,12 +99,12 @@ class Simulator:
             loop = progress(loop, total=steps)
         for i in loop:
 
-            # Input contract p mx my mz ax ay az
+            # Input contract ax ay az mx my mz p
             sample = struct.pack(
-                '7f', 
-                p[i], 
-                M[i][0], M[i][1], M[i][2], 
-                A[i][0], A[i][1], A[i][2]
+                '7f',
+                A[i][0], A[i][1], A[i][2],
+                M[i][0], M[i][1], M[i][2],
+                p[i]
             )
 
             process.stdin.write(sample)
