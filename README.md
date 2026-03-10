@@ -62,7 +62,7 @@ The inference binary communicates over stdin/stdout in lock-step. For each input
 
 - **Input**: 7 float32s — `p, mx, my, mz, ax, ay, az` (28 bytes)
 - **Flag byte**: 1 byte — `0x01` if output follows, `0x00` if no output for this sample
-- **Output** (only when flag is `0x01`): 6 float32s — `mwx, mwy, mwz, awx, awy, awz` (24 bytes)
+- **Output** (only when flag is `0x01`): 6 float32s — `awx, awy, awz, mwx, mwy, mwz` (24 bytes)
 
 The binary must write the flag byte after consuming each input sample, and flush stdout after each response. Binaries that produce output on every sample write `0x01` followed by 24 bytes each time.
 

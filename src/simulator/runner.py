@@ -27,9 +27,9 @@ class SimResult:
 
 
     def add_row(self, sample: list[float], input_index: int) -> None:
-        '''Add a corrected sample. Format: mwx mwy mwz awx awy awz.'''
-        self.Mw[self.sample_index] = sample[:3]
-        self.Aw[self.sample_index] = sample[3:6]
+        '''Add a corrected sample. Format: awx awy awz mwx mwy mwz.'''
+        self.Aw[self.sample_index] = sample[:3]
+        self.Mw[self.sample_index] = sample[3:6]
         self.output_indices.append(input_index)
         self.sample_index += 1
 

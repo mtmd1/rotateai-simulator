@@ -50,16 +50,16 @@ class TestSimResult:
     def test_add_row_splits_correctly(self):
         r = SimResult(1)
         r.add_row([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 0)
-        np.testing.assert_array_equal(r.Mw[0], [1.0, 2.0, 3.0])
-        np.testing.assert_array_equal(r.Aw[0], [4.0, 5.0, 6.0])
+        np.testing.assert_array_equal(r.Aw[0], [1.0, 2.0, 3.0])
+        np.testing.assert_array_equal(r.Mw[0], [4.0, 5.0, 6.0])
         assert r.sample_index == 1
         assert r.output_indices == [0]
 
     def test_add_row_ignores_extra_values(self):
         r = SimResult(1)
         r.add_row([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], 0)
-        np.testing.assert_array_equal(r.Mw[0], [1.0, 2.0, 3.0])
-        np.testing.assert_array_equal(r.Aw[0], [4.0, 5.0, 6.0])
+        np.testing.assert_array_equal(r.Aw[0], [1.0, 2.0, 3.0])
+        np.testing.assert_array_equal(r.Mw[0], [4.0, 5.0, 6.0])
 
     def test_add_multiple_rows(self):
         r = SimResult(3)
@@ -140,7 +140,7 @@ class TestSimulatorRun:
         '''Repeater reads 7 float32s and writes back the first 6.
         Input is: p mx my mz ax ay az
         Output is: p mx my mz ax ay
-        So Mw gets (p, mx, my) and Aw gets (mz, ax, ay).
+        So Aw gets (p, mx, my) and Mw gets (mz, ax, ay).
         Values go through float64->float32->float64 so we use atol for precision.'''
         sim = _make_simulator(repeater)
         n = 5
@@ -149,8 +149,8 @@ class TestSimulatorRun:
             result = sim.run(data)
 
         for i in range(n):
-            expected_mw = np.float32([data['p'][i], data['M'][i][0], data['M'][i][1]])
-            expected_aw = np.float32([data['M'][i][2], data['A'][i][0], data['A'][i][1]])
+            expected_aw = np.float32([data['p'][i], data['M'][i][0], data['M'][i][1]])
+            expected_mw = np.float32([data['M'][i][2], data['A'][i][0], data['A'][i][1]])
             np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
             np.testing.assert_allclose(result.Aw[i], expected_aw, atol=1e-7)
 
@@ -216,7 +216,7 @@ class TestSimulatorRunSkipper:
             result = sim.run(data)
 
         for out_idx, in_idx in enumerate(result.output_indices):
-            expected_mw = np.float32([data['p'][in_idx], data['M'][in_idx][0], data['M'][in_idx][1]])
-            expected_aw = np.float32([data['M'][in_idx][2], data['A'][in_idx][0], data['A'][in_idx][1]])
+            expected_aw = np.float32([data['p'][in_idx], data['M'][in_idx][0], data['M'][in_idx][1]])
+            expected_mw = np.float32([data['M'][in_idx][2], data['A'][in_idx][0], data['A'][in_idx][1]])
             np.testing.assert_allclose(result.Mw[out_idx], expected_mw, atol=1e-7)
             np.testing.assert_allclose(result.Aw[out_idx], expected_aw, atol=1e-7)
