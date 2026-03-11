@@ -236,7 +236,7 @@ class TestSaveReport:
                 'M': ground, 'A': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         assert (tmp_path / 'test_report.json').is_file()
 
     def test_json_structure(self, tmp_path):
@@ -246,7 +246,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -264,7 +264,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -283,7 +283,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -297,7 +297,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(10, Mw=predicted, Aw=predicted, output_indices=[1, 5, 9])
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -311,7 +311,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -328,7 +328,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=ground, Aw=ground)
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 
@@ -345,7 +345,7 @@ class TestSaveReport:
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=np.random.rand(n, 3), Aw=np.random.rand(n, 3))
 
-        save_report('test_report', config, data, result, tmp_path)
+        save_report('test_report', 'testbin', config, data, result, tmp_path)
         with open(tmp_path / 'test_report.json') as f:
             report = json.load(f)
 

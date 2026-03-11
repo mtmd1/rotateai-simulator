@@ -69,6 +69,16 @@ class Simulator:
         self.cmdline = cmdline
 
 
+    @staticmethod
+    def _cleanup(process):
+        '''Close all process pipes to prevent finalizer errors.'''
+        for pipe in (process.stdin, process.stdout, process.stderr):
+            try:
+                pipe.close()
+            except Exception:
+                pass
+
+
     def run(self, data: dict[str, np.ndarray], progress=None) -> SimResult:
         '''Run the binary on the given data and return the simulation result.
         progress: optional callable(iterable, total=int) -> iterable (for tqdm).'''
@@ -87,6 +97,7 @@ class Simulator:
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
 
         # Pass it to the benchmarker
@@ -107,31 +118,50 @@ class Simulator:
                 p[i]
             )
 
-            process.stdin.write(sample)
-            process.stdin.flush() # Binary receives it immediately
+            try:
+                process.stdin.write(sample)
+                process.stdin.flush()
+            except BrokenPipeError:
+                process.wait()
+                stderr = process.stderr.read().decode().strip()
+                msg = f'Binary exited with code {process.returncode}'
+                if stderr:
+                    msg += f': {stderr}'
+                self._cleanup(process)
+                print(msg, file=sys.stderr)
+                sys.exit(1)
 
             # Read flag byte
             flag = process.stdout.read(1)
             if len(flag) != 1:
-                print(f'Binary returned {len(flag)} bytes for flag, expected 1.', file=sys.stderr)
+                process.wait()
+                stderr = process.stderr.read().decode().strip()
+                msg = f'Binary returned {len(flag)} bytes for flag, expected 1'
+                if stderr:
+                    msg += f': {stderr}'
+                self._cleanup(process)
+                print(msg, file=sys.stderr)
                 sys.exit(1)
 
             if flag == b'\x01':
                 # Output follows: 6 float32s = 24 bytes
                 output = process.stdout.read(24)
                 if len(output) != 24:
+                    self._cleanup(process)
                     print(f'Binary returned {len(output)} bytes, expected 24.', file=sys.stderr)
                     sys.exit(1)
 
                 try:
                     corrected_sample = struct.unpack('6f', output)
                 except struct.error as e:
+                    self._cleanup(process)
                     print(f'Parsing binary output failed: {e}', file=sys.stderr)
                     sys.exit(1)
 
                 result.add_row(corrected_sample, i)
 
             elif flag != b'\x00':
+                self._cleanup(process)
                 print(f'Binary returned invalid flag byte: {flag!r}', file=sys.stderr)
                 sys.exit(1)
 
@@ -141,6 +171,14 @@ class Simulator:
         if remaining:
             print(f'Warning: binary wrote {len(remaining)} extra bytes after expected output.')
         process.wait()
+        if process.returncode != 0:
+            stderr = process.stderr.read().decode().strip()
+            msg = f'Binary exited with code {process.returncode}'
+            if stderr:
+                msg += f': {stderr}'
+            self._cleanup(process)
+            print(msg, file=sys.stderr)
+            sys.exit(1)
         benchmarker.collect()
 
         return result

@@ -220,3 +220,30 @@ class TestSimulatorRunSkipper:
             expected_mw = np.float32([data['M'][in_idx][0], data['M'][in_idx][1], data['M'][in_idx][2]])
             np.testing.assert_allclose(result.Aw[out_idx], expected_aw, atol=1e-7)
             np.testing.assert_allclose(result.Mw[out_idx], expected_mw, atol=1e-7)
+
+
+# MARK: Binary error propagation
+
+class TestBinaryErrorPropagation:
+    '''Tests for propagating binary stderr and exit codes.'''
+
+    def test_binary_exit_propagates_stderr(self, failer, capsys):
+        '''When binary exits immediately with an error, stderr is propagated.'''
+        sim = _make_simulator(failer)
+        data = _make_data(5)
+        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
+            with pytest.raises(SystemExit, match='1'):
+                sim.run(data)
+        captured = capsys.readouterr()
+        assert 'I have failed' in captured.err
+
+    def test_binary_exit_stderr_in_flag_error(self, failer, capsys):
+        '''When binary dies before writing flag, error includes stderr context.'''
+        sim = _make_simulator(failer)
+        data = _make_data(5)
+        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
+            with pytest.raises(SystemExit, match='1'):
+                sim.run(data)
+        captured = capsys.readouterr()
+        assert 'I have failed' in captured.err
+        assert 'flag' in captured.err

@@ -37,7 +37,7 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: SimResult, output_path: Path) -> None:
+def save_report(name: str, binary: str, config: Config, data: dict[str, np.ndarray], result: SimResult, output_path: Path) -> None:
     '''Calculate derived estimates, error, and save them with
     the benchmarking statistics as a JSON report.'''
     (minimum_frequency,
@@ -52,6 +52,7 @@ def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: 
 
     report = {
         'name': name,
+        'binary': binary,
         'data_file': data['_source'],
         'config': config.to_dict(),
         'benchmark': {

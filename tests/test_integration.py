@@ -173,7 +173,7 @@ class TestReportGeneration:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        save_report('integration_report', config, batch, result, tmp_path)
+        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
 
         with open(tmp_path / 'integration_report.json') as f:
             report = json.load(f)
@@ -193,7 +193,7 @@ class TestReportGeneration:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        save_report('integration_report', config, batch, result, tmp_path)
+        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
 
         with open(tmp_path / 'integration_report.json') as f:
             report = json.load(f)
@@ -213,7 +213,7 @@ class TestReportGeneration:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        save_report('integration_report', config, batch, result, tmp_path)
+        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
 
         with open(tmp_path / 'integration_report.json') as f:
             report = json.load(f)
@@ -234,7 +234,7 @@ class TestReportGeneration:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        save_report('integration_report', config, batch, result, tmp_path)
+        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
 
         with open(tmp_path / 'integration_report.json') as f:
             report = json.load(f)
@@ -257,7 +257,7 @@ class TestReportGeneration:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        save_report('integration_report', config, batch, result, tmp_path)
+        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
 
         with open(tmp_path / 'integration_report.json') as f:
             report = json.load(f)
@@ -278,7 +278,7 @@ class TestReportGeneration:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        save_report('integration_report', config, batch, result, tmp_path)
+        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
 
         with open(tmp_path / 'integration_report.json') as f:
             report = json.load(f)

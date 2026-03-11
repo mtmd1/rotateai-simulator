@@ -57,8 +57,7 @@ def simulate(args):
     data = Data(args.data)
     simulator = Simulator(args.binary, cmdline=config.cmdline)
     output_path = validate_output_path(args.output)
-
-    report_prefix = f'simreport_{args.binary.split("/")[-1]}'
+    binary_name = args.binary.split("/")[-1]
 
     for i, batch in enumerate(data):
         result = simulator.run(batch, progress=partial(tqdm, desc=f'Batch {i + 1}/{len(data)}'))
@@ -66,7 +65,7 @@ def simulate(args):
         batch_name = batch['_source'].removesuffix('.mat').replace('_', '-')
         timestamp = datetime.now().strftime('%H%M%S')
 
-        save_report(f'{report_prefix}_{batch_name}_{timestamp}', config, batch, result, output_path)
+        save_report(f'simreport_{binary_name}_{batch_name}_{timestamp}', binary_name, config, batch, result, output_path)
     
     print('Done.')
 
