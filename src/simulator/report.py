@@ -101,18 +101,23 @@ def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     
 
 def calculate_errors(data: dict[str, np.ndarray], result: SimResult) -> tuple[tuple[float]]:
-    '''Return the MAE and RMSE values for Aw and Mw, aligned by output indices.'''
-    ground_Mw = data['Mw'][result.output_indices]
-    ground_Aw = data['Aw'][result.output_indices]
+    '''Return the MAE and RMSE values for Aw and Mw over all input samples.
+    Sparse predictions are linearly interpolated to full length before comparison.'''
+    N = len(data['Mw'])
+    x_out = np.array(result.output_indices)
+    x_all = np.arange(N)
 
-    predicted_Mw = result.Mw
-    predicted_Aw = result.Aw
+    predicted_Mw = np.column_stack([np.interp(x_all, x_out, result.Mw[:, c]) for c in range(3)])
+    predicted_Aw = np.column_stack([np.interp(x_all, x_out, result.Aw[:, c]) for c in range(3)])
 
-    mae_mw = np.mean(np.abs(ground_Mw.astype('float') - predicted_Mw.astype('float')), axis=0)
-    mae_aw = np.mean(np.abs(ground_Aw.astype('float') - predicted_Aw.astype('float')), axis=0)
+    ground_Mw = data['Mw'].astype('float')
+    ground_Aw = data['Aw'].astype('float')
 
-    rmse_mw = np.sqrt(np.mean((ground_Mw.astype('float') - predicted_Mw.astype('float')) ** 2, axis=0))
-    rmse_aw = np.sqrt(np.mean((ground_Aw.astype('float') - predicted_Aw.astype('float')) ** 2, axis=0))
+    mae_mw = np.mean(np.abs(ground_Mw - predicted_Mw), axis=0)
+    mae_aw = np.mean(np.abs(ground_Aw - predicted_Aw), axis=0)
+
+    rmse_mw = np.sqrt(np.mean((ground_Mw - predicted_Mw) ** 2, axis=0))
+    rmse_aw = np.sqrt(np.mean((ground_Aw - predicted_Aw) ** 2, axis=0))
 
     return (mae_mw, mae_aw, rmse_mw, rmse_aw)
 

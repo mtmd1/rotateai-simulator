@@ -144,18 +144,32 @@ class TestCalculateErrors:
         mae_mw, _, rmse_mw, _ = calculate_errors(data, result)
         assert np.all(rmse_mw >= mae_mw)
 
-    def test_errors_with_sparse_output(self):
-        '''When only indices [1, 3] produce output, errors computed against those rows.'''
-        ground_Mw = np.array([[10.0, 20.0, 30.0],  # index 0 - skipped
-                              [1.0, 2.0, 3.0],      # index 1 - output
-                              [40.0, 50.0, 60.0],    # index 2 - skipped
-                              [4.0, 5.0, 6.0]])      # index 3 - output
-        predicted_Mw = np.array([[1.0, 2.0, 3.0],   # matches index 1
-                                 [4.0, 5.0, 6.0]])   # matches index 3
-        data = {'Mw': ground_Mw, 'Aw': ground_Mw}
-        result = _make_result(4, Mw=predicted_Mw, Aw=predicted_Mw, output_indices=[1, 3])
+    def test_interpolation_identity_when_all_output(self):
+        '''When all samples have output, interpolation is a no-op.'''
+        ground = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+        predicted = np.array([[1.5, 2.0, 3.0], [4.0, 5.5, 6.0]])
+        data = {'Mw': ground, 'Aw': ground}
+        result = _make_result(2, Mw=predicted, Aw=predicted)
         mae_mw, _, _, _ = calculate_errors(data, result)
-        np.testing.assert_array_equal(mae_mw, [0.0, 0.0, 0.0])
+        expected = np.mean(np.abs(ground - predicted), axis=0)
+        np.testing.assert_array_almost_equal(mae_mw, expected)
+
+    def test_interpolated_error_differs_from_sparse(self):
+        '''With sparse output, interpolated error includes skipped samples.'''
+        # 4 ground truth samples, output only at indices 0 and 3
+        ground_Mw = np.array([[0.0, 0.0, 0.0],
+                              [10.0, 10.0, 10.0],
+                              [10.0, 10.0, 10.0],
+                              [0.0, 0.0, 0.0]])
+        # Predictions match ground truth at output indices
+        predicted_Mw = np.array([[0.0, 0.0, 0.0],
+                                 [0.0, 0.0, 0.0]])
+        data = {'Mw': ground_Mw, 'Aw': ground_Mw}
+        result = _make_result(4, Mw=predicted_Mw, Aw=predicted_Mw, output_indices=[0, 3])
+        mae_mw, _, _, _ = calculate_errors(data, result)
+        # Interpolated predictions: [0, 0, 0, 0] — linear interp between 0 and 0
+        # Ground truth at indices 1,2 is 10 — so error is nonzero
+        assert np.all(mae_mw > 0)
 
 
 # MARK: derive_metrics
