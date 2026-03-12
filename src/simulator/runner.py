@@ -22,31 +22,61 @@ class SimResult:
         self.Mw: np.ndarray = np.zeros((N, 3))
         self.Aw: np.ndarray = np.zeros((N, 3))
         self.sample_index = 0
+        self.output_indices: list[int] = []
         self.benchmark = None
 
 
-    def add_row(self, sample: list[float]) -> None:
-        '''Add a corrected sample. Format: mwx mwy mwz awx awy awz.'''
-        self.Mw[self.sample_index] = sample[:3]
-        self.Aw[self.sample_index] = sample[3:6]
+    def add_row(self, sample: list[float], input_index: int) -> None:
+        '''Add a corrected sample. Format: awx awy awz mwx mwy mwz.'''
+        self.Aw[self.sample_index] = sample[:3]
+        self.Mw[self.sample_index] = sample[3:6]
+        self.output_indices.append(input_index)
         self.sample_index += 1
+
+
+    def trim(self) -> None:
+        '''Trim pre-allocated arrays to actual output count.'''
+        n = self.sample_index
+        self.Mw = self.Mw[:n]
+        self.Aw = self.Aw[:n]
+
+
+    @property
+    def output_count(self) -> int:
+        return self.sample_index
+
+    @property
+    def output_ratio(self) -> float:
+        return self.sample_index / self.N if self.N > 0 else 0.0
 
 
 class Simulator:
     '''The executor of single simulations.'''
 
-    def __init__(self, binary_path_str: str) -> None:
+    def __init__(self, binary_path_str: str, cmdline: str = None) -> None:
         '''Load and validate the binary file.'''
         binary_path = Path(binary_path_str)
         if not binary_path.is_absolute():
             binary_path = Path.cwd() / binary_path_str
-        
+
         if binary_path.is_file():
             self.binary = binary_path
 
         else:
             print(f'Binary path {binary_path} not found.', file=sys.stderr)
             sys.exit(1)
+
+        self.cmdline = cmdline
+
+
+    @staticmethod
+    def _cleanup(process):
+        '''Close all process pipes to prevent finalizer errors.'''
+        for pipe in (process.stdin, process.stdout, process.stderr):
+            try:
+                pipe.close()
+            except Exception:
+                pass
 
 
     def run(self, data: dict[str, np.ndarray], progress=None) -> SimResult:
@@ -59,10 +89,15 @@ class Simulator:
         result = SimResult(steps)
 
         # Open the binary process
+        cmd = [str(self.binary)]
+        if self.cmdline:
+            cmd.extend(self.cmdline.split())
+
         process = subprocess.Popen(
-            [self.binary],
+            cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
 
         # Pass it to the benchmarker
@@ -75,37 +110,75 @@ class Simulator:
             loop = progress(loop, total=steps)
         for i in loop:
 
-            # Input contract p mx my mz ax ay az
+            # Input contract ax ay az mx my mz p
             sample = struct.pack(
-                '7f', 
-                p[i], 
-                M[i][0], M[i][1], M[i][2], 
-                A[i][0], A[i][1], A[i][2]
+                '7f',
+                A[i][0], A[i][1], A[i][2],
+                M[i][0], M[i][1], M[i][2],
+                p[i]
             )
 
-            process.stdin.write(sample)
-            process.stdin.flush() # Binary receives it immediately
-
-            # Block until output is available
-            output = process.stdout.read(24) # 6 float32s = 24 bytes
-            if len(output) != 24:
-                print(f'Binary returned {len(output)} bytes, expected 24.', file=sys.stderr)
-                sys.exit(1)
-
-            # Output contract mwx mwy mwz awx awy awz
             try:
-                corrected_sample = struct.unpack('6f', output)
-            except struct.error as e:
-                print(f'Parsing binary output failed: {e}', file=sys.stderr)
+                process.stdin.write(sample)
+                process.stdin.flush()
+            except BrokenPipeError:
+                process.wait()
+                stderr = process.stderr.read().decode().strip()
+                msg = f'Binary exited with code {process.returncode}'
+                if stderr:
+                    msg += f': {stderr}'
+                self._cleanup(process)
+                print(msg, file=sys.stderr)
                 sys.exit(1)
 
-            result.add_row(corrected_sample)
-        
+            # Read flag byte
+            flag = process.stdout.read(1)
+            if len(flag) != 1:
+                process.wait()
+                stderr = process.stderr.read().decode().strip()
+                msg = f'Binary returned {len(flag)} bytes for flag, expected 1'
+                if stderr:
+                    msg += f': {stderr}'
+                self._cleanup(process)
+                print(msg, file=sys.stderr)
+                sys.exit(1)
+
+            if flag == b'\x01':
+                # Output follows: 6 float32s = 24 bytes
+                output = process.stdout.read(24)
+                if len(output) != 24:
+                    self._cleanup(process)
+                    print(f'Binary returned {len(output)} bytes, expected 24.', file=sys.stderr)
+                    sys.exit(1)
+
+                try:
+                    corrected_sample = struct.unpack('6f', output)
+                except struct.error as e:
+                    self._cleanup(process)
+                    print(f'Parsing binary output failed: {e}', file=sys.stderr)
+                    sys.exit(1)
+
+                result.add_row(corrected_sample, i)
+
+            elif flag != b'\x00':
+                self._cleanup(process)
+                print(f'Binary returned invalid flag byte: {flag!r}', file=sys.stderr)
+                sys.exit(1)
+
+        result.trim()
         process.stdin.close()
         remaining = process.stdout.read()
         if remaining:
             print(f'Warning: binary wrote {len(remaining)} extra bytes after expected output.')
         process.wait()
+        if process.returncode != 0:
+            stderr = process.stderr.read().decode().strip()
+            msg = f'Binary exited with code {process.returncode}'
+            if stderr:
+                msg += f': {stderr}'
+            self._cleanup(process)
+            print(msg, file=sys.stderr)
+            sys.exit(1)
         benchmarker.collect()
 
         return result

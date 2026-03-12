@@ -206,3 +206,47 @@ class TestInit:
     def test_bad_values_exit(self, bad_values_config):
         with pytest.raises(SystemExit):
             Config(bad_values_config)
+
+    def test_cmdline_defaults_to_none(self, valid_config):
+        c = Config(valid_config)
+        assert c.cmdline is None
+
+    def test_cmdline_parsed(self, tmp_path):
+        path = tmp_path / 'cmdline.toml'
+        path.write_text('''\
+[config]
+sample_rate = 5
+voltage = 1.8
+DMIPS_per_MHz = 1.5
+uA_per_MHz = 51.6
+max_frequency = 160
+cmdline = "--offset 50"
+''')
+        c = Config(str(path))
+        assert c.cmdline == '--offset 50'
+
+
+# MARK: to_dict
+
+class TestToDict:
+    '''Tests for the to_dict method.'''
+
+    def test_to_dict_excludes_cmdline_when_none(self, valid_config):
+        c = Config(valid_config)
+        d = c.to_dict()
+        assert 'cmdline' not in d
+
+    def test_to_dict_includes_cmdline_when_present(self, tmp_path):
+        path = tmp_path / 'cmdline.toml'
+        path.write_text('''\
+[config]
+sample_rate = 5
+voltage = 1.8
+DMIPS_per_MHz = 1.5
+uA_per_MHz = 51.6
+max_frequency = 160
+cmdline = "--offset 50"
+''')
+        c = Config(str(path))
+        d = c.to_dict()
+        assert d['cmdline'] == '--offset 50'

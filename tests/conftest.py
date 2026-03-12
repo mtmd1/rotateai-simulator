@@ -15,6 +15,8 @@ from simulator.config import Config
 
 FIXTURES = Path(__file__).parent / 'fixtures'
 REPEATER_SRC = FIXTURES / 'repeater.c'
+SKIPPER_SRC = FIXTURES / 'skipper.c'
+FAILER_SRC = FIXTURES / 'failer.c'
 TINY_MAT = FIXTURES / 'mn11_157aprh_tiny.mat'
 
 
@@ -31,6 +33,40 @@ def repeater(tmp_path_factory) -> Path:
     )
     if result.returncode != 0:
         pytest.skip(f'Failed to compile repeater: {result.stderr}')
+
+    return out
+
+
+@pytest.fixture(scope='session')
+def skipper(tmp_path_factory) -> Path:
+    '''Compile the skipper binary from tests/fixtures/skipper.c.'''
+    if not SKIPPER_SRC.is_file():
+        pytest.skip('tests/fixtures/skipper.c not found')
+
+    out = tmp_path_factory.mktemp('bin') / 'skipper'
+    result = subprocess.run(
+        ['gcc', str(SKIPPER_SRC), '-o', str(out)],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        pytest.skip(f'Failed to compile skipper: {result.stderr}')
+
+    return out
+
+
+@pytest.fixture(scope='session')
+def failer(tmp_path_factory) -> Path:
+    '''Compile the failer binary from tests/fixtures/failer.c.'''
+    if not FAILER_SRC.is_file():
+        pytest.skip('tests/fixtures/failer.c not found')
+
+    out = tmp_path_factory.mktemp('bin') / 'failer'
+    result = subprocess.run(
+        ['gcc', str(FAILER_SRC), '-o', str(out)],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        pytest.skip(f'Failed to compile failer: {result.stderr}')
 
     return out
 

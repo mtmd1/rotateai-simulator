@@ -16,7 +16,7 @@ class Benchmarker:
     '''Main benchmarking class.'''
 
     def __init__(self, binary_path: Path, process: subprocess.Popen) -> None:
-        '''Initialise one time measurements and start the perf process'''
+        '''Initialise one time measurements and start the perf process.'''
         self.file_size = binary_path.stat().st_size
         self.peak_memory = None
         self.total_instructions = None
@@ -29,7 +29,7 @@ class Benchmarker:
             print(f'Failed to get perf events: {e}.', file=sys.stderr)
             sys.exit(1)
 
-        self.validate_perf_events(perf_events)
+        perf_events = self.validate_perf_events(perf_events)
 
         self.perf = self.open_perf_process(process.pid, perf_events)
 
@@ -62,15 +62,30 @@ class Benchmarker:
             return 'instructions'
 
     
-    def validate_perf_events(self, perf_events: str):
-        result = subprocess.run(
-            ['perf', 'stat', '-e', perf_events, '--', 'true'],
-            capture_output=True, 
-            text=True
-        )
-        if 'event syntax error' in result.stderr.lower() or '<not supported>' in result.stderr.lower():
+    def validate_perf_events(self, perf_events: str) -> str:
+        '''Validate perf events. Returns the (possibly reduced) event string.'''
+        try:
+            result = subprocess.run(
+                ['perf', 'stat', '-e', perf_events, '--', 'true'],
+                capture_output=True,
+                text=True
+            )
+
+        except FileNotFoundError:
+            print('Perf is not installed.', file=sys.stderr)
+            sys.exit(1)
+
+        if 'event syntax error' in result.stderr.lower():
             print(f'Perf events not supported: {perf_events}.', file=sys.stderr)
             sys.exit(1)
+
+        if '<not supported>' in result.stderr.lower():
+            answer = input('FP events not supported. Continue with instructions only? (FLOPS will be 0) [Y/n] ')
+            if answer.strip().lower() in ('', 'y', 'yes'):
+                return 'instructions'
+            sys.exit(1)
+
+        return perf_events
 
 
     def open_perf_process(self, process_pid: int, perf_events: str) -> subprocess.Popen:        
@@ -81,10 +96,6 @@ class Benchmarker:
                 text=True
             )
             return perf
-
-        except FileNotFoundError:
-            print(f'perf is not installed.', file=sys.stderr)
-            sys.exit(1)
 
         except PermissionError:
             print('Permission denied to run perf. Elevated privileges are required.', file=sys.stderr)

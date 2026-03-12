@@ -164,30 +164,49 @@ class TestValidatePerfEvents:
             with pytest.raises(SystemExit):
                 b.validate_perf_events('instructions,fp_ret_sse_avx_ops.single,fp_ret_sse_avx_ops.double')
 
-    def test_not_supported_exits(self):
+    def test_not_supported_falls_back_on_yes(self):
         b = _make_benchmarker()
-        with patch('simulator.bench.subprocess.run') as mock_run:
+        with patch('simulator.bench.subprocess.run') as mock_run, \
+             patch('builtins.input', return_value='y'):
+            mock_run.return_value = MagicMock(stderr=PERF_STDERR_NOT_SUPPORTED)
+            result = b.validate_perf_events('instructions,fp_arith_inst_retired.scalar_double')
+        assert result == 'instructions'
+
+    def test_not_supported_falls_back_on_empty(self):
+        b = _make_benchmarker()
+        with patch('simulator.bench.subprocess.run') as mock_run, \
+             patch('builtins.input', return_value=''):
+            mock_run.return_value = MagicMock(stderr=PERF_STDERR_NOT_SUPPORTED)
+            result = b.validate_perf_events('instructions,fp_arith_inst_retired.scalar_double')
+        assert result == 'instructions'
+
+    def test_not_supported_exits_on_no(self):
+        b = _make_benchmarker()
+        with patch('simulator.bench.subprocess.run') as mock_run, \
+             patch('builtins.input', return_value='n'):
             mock_run.return_value = MagicMock(stderr=PERF_STDERR_NOT_SUPPORTED)
             with pytest.raises(SystemExit):
-                b.validate_perf_events('fp_arith_inst_retired.scalar_double')
+                b.validate_perf_events('instructions,fp_arith_inst_retired.scalar_double')
 
-    def test_valid_events_pass(self):
+    def test_valid_events_returns_unchanged(self):
         b = _make_benchmarker()
+        events = 'instructions,fp_arith_inst_retired.scalar_single'
         with patch('simulator.bench.subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(stderr=PERF_STDERR_SIMPLE)
-            b.validate_perf_events('instructions,fp_arith_inst_retired.scalar_single,fp_arith_inst_retired.scalar_double,fp_arith_inst_retired.128b_packed_single,fp_arith_inst_retired.128b_packed_double,fp_arith_inst_retired.256b_packed_single,fp_arith_inst_retired.256b_packed_double')
+            result = b.validate_perf_events(events)
+        assert result == events
+
+    def test_perf_not_installed_exits(self):
+        b = _make_benchmarker()
+        with patch('simulator.bench.subprocess.run', side_effect=FileNotFoundError):
+            with pytest.raises(SystemExit):
+                b.validate_perf_events('instructions')
 
 
 # MARK: open_perf_process
 
 class TestOpenPerfProcess:
     '''Tests for opening the perf subprocess.'''
-
-    def test_perf_not_installed_exits(self):
-        b = _make_benchmarker()
-        with patch('simulator.bench.subprocess.Popen', side_effect=FileNotFoundError):
-            with pytest.raises(SystemExit):
-                b.open_perf_process(1234, 'instructions')
 
     def test_permission_denied_exits(self):
         b = _make_benchmarker()

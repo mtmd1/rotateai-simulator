@@ -9,6 +9,7 @@ Created: 2026-02-25
 import sys
 import json
 import numpy as np
+from datetime import datetime
 from pathlib import Path
 
 from simulator.config import Config
@@ -37,7 +38,7 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: SimResult, output_path: Path) -> None:
+def save_report(binary: str, config: Config, data: dict[str, np.ndarray], result: SimResult, output_path: Path) -> None:
     '''Calculate derived estimates, error, and save them with
     the benchmarking statistics as a JSON report.'''
     (minimum_frequency,
@@ -50,27 +51,36 @@ def save_report(name: str, config: Config, data: dict[str, np.ndarray], result: 
      rmse_mw,
      rmse_aw) = calculate_errors(data, result)
 
+    data_file = data['_source']
+    batch_name = data_file.removesuffix('.mat').replace('_', '-')
+    suffix = format(hash(result) % 0xFFFF, '04x')
+    name = f'simreport_{binary}_{batch_name}_{suffix}'
+
     report = {
         'name': name,
-        'data_file': data['_source'],
+        'binary': binary,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'data_file': data_file,
         'config': config.to_dict(),
         'benchmark': {
             'file_size_KB': r(result.benchmark.file_size / 1024),
             'peak_memory_KB': result.benchmark.peak_memory,
             'instructions_per_inference': int(result.benchmark.total_instructions / result.N),
-            'FLOPS_per_inference': int(result.benchmark.total_flops / result.N)
+            'FLOPS_per_inference': int(result.benchmark.total_flops / result.N),
+            'output_count': result.output_count,
+            'output_ratio': r(result.output_ratio),
         },
         'derived': {
             'minimum_operating_frequency_MHz': r(minimum_frequency),
             'energy_per_inference_mJ': r(energy_per_inference),
             'duty_cycle': r(duty_cycle),
-            'power_consumption_mW': r(power_consumption)
+            'power_consumption_mW': r(power_consumption),
         },
         'error': {
             'MAE_Mw_uT': r(mae_mw),
             'RMSE_Mw_uT': r(rmse_mw),
             'MAE_Aw_g': r(mae_aw),
-            'RMSE_Aw_g': r(rmse_aw)
+            'RMSE_Aw_g': r(rmse_aw),
         }
     }
     with open(output_path / f'{name}.json', 'w') as f:
@@ -99,18 +109,23 @@ def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     
 
 def calculate_errors(data: dict[str, np.ndarray], result: SimResult) -> tuple[tuple[float]]:
-    '''Return the MAE and RMSE values for Aw and Mw.'''
-    ground_Mw = data['Mw']
-    ground_Aw = data['Aw']
+    '''Return the MAE and RMSE values for Aw and Mw over all input samples.
+    Sparse predictions are linearly interpolated to full length before comparison.'''
+    N = len(data['Mw'])
+    x_out = np.array(result.output_indices)
+    x_all = np.arange(N)
 
-    predicted_Mw = result.Mw
-    predicted_Aw = result.Aw
+    predicted_Mw = np.column_stack([np.interp(x_all, x_out, result.Mw[:, c]) for c in range(3)])
+    predicted_Aw = np.column_stack([np.interp(x_all, x_out, result.Aw[:, c]) for c in range(3)])
 
-    mae_mw = np.mean(np.abs(ground_Mw.astype('float') - predicted_Mw.astype('float')), axis=0)
-    mae_aw = np.mean(np.abs(ground_Aw.astype('float') - predicted_Aw.astype('float')), axis=0)
+    ground_Mw = data['Mw'].astype('float')
+    ground_Aw = data['Aw'].astype('float')
 
-    rmse_mw = np.sqrt(np.mean((ground_Mw.astype('float') - predicted_Mw.astype('float')) ** 2, axis=0))
-    rmse_aw = np.sqrt(np.mean((ground_Aw.astype('float') - predicted_Aw.astype('float')) ** 2, axis=0))
+    mae_mw = np.mean(np.abs(ground_Mw - predicted_Mw), axis=0)
+    mae_aw = np.mean(np.abs(ground_Aw - predicted_Aw), axis=0)
+
+    rmse_mw = np.sqrt(np.mean((ground_Mw - predicted_Mw) ** 2, axis=0))
+    rmse_aw = np.sqrt(np.mean((ground_Aw - predicted_Aw) ** 2, axis=0))
 
     return (mae_mw, mae_aw, rmse_mw, rmse_aw)
 

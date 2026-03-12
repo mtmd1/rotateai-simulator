@@ -56,7 +56,7 @@ class TestFullPipeline:
         assert report is not None
 
     def test_report_has_all_sections(self, report):
-        for section in ['name', 'data_file', 'config', 'benchmark', 'derived', 'error']:
+        for section in ['name', 'binary', 'timestamp', 'data_file', 'config', 'benchmark', 'derived', 'error']:
             assert section in report
 
     def test_report_name_contains_binary(self, report):
@@ -103,6 +103,12 @@ class TestE2EBenchmark:
 
     def test_has_flops(self, report):
         assert isinstance(report['benchmark']['FLOPS_per_inference'], int)
+
+    def test_has_output_count(self, report):
+        assert report['benchmark']['output_count'] > 0
+
+    def test_has_output_ratio(self, report):
+        assert report['benchmark']['output_ratio'] == 1.0
 
 
 # MARK: derived
