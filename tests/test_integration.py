@@ -161,7 +161,7 @@ class TestErrorWithRepeater:
 class TestReportGeneration:
     '''Test save_report produces a valid JSON file from real pipeline output.'''
 
-    def test_produces_valid_json(self, repeater, config, tmp_path):
+    def _run_and_save(self, repeater, config, tmp_path):
         if not TINY_MAT.is_file():
             pytest.skip('tiny mat fixture not found')
         d = Data(str(TINY_MAT))
@@ -173,72 +173,29 @@ class TestReportGeneration:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
+        save_report('repeater', config, batch, result, tmp_path)
+        report_file = next(tmp_path.glob('simreport_*.json'))
+        with open(report_file) as f:
+            return json.load(f), batch
 
-        with open(tmp_path / 'integration_report.json') as f:
-            report = json.load(f)
-
-        assert report['name'] == 'integration_report'
+    def test_produces_valid_json(self, repeater, config, tmp_path):
+        report, _ = self._run_and_save(repeater, config, tmp_path)
+        assert report['binary'] == 'repeater'
         assert report['data_file'] == 'mn11_157aprh_tiny.mat'
 
     def test_report_has_all_sections(self, repeater, config, tmp_path):
-        if not TINY_MAT.is_file():
-            pytest.skip('tiny mat fixture not found')
-        d = Data(str(TINY_MAT))
-        batch = d.batches[0]
-        sim = object.__new__(Simulator)
-        sim.binary = repeater
-        sim.cmdline = None
-
-        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
-            result = sim.run(batch)
-
-        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
-
-        with open(tmp_path / 'integration_report.json') as f:
-            report = json.load(f)
-
-        for section in ['name', 'data_file', 'config', 'benchmark', 'derived', 'error']:
+        report, _ = self._run_and_save(repeater, config, tmp_path)
+        for section in ['name', 'binary', 'timestamp', 'data_file', 'config', 'benchmark', 'derived', 'error']:
             assert section in report
 
     def test_report_error_values_are_3_element_lists(self, repeater, config, tmp_path):
-        if not TINY_MAT.is_file():
-            pytest.skip('tiny mat fixture not found')
-        d = Data(str(TINY_MAT))
-        batch = d.batches[0]
-        sim = object.__new__(Simulator)
-        sim.binary = repeater
-        sim.cmdline = None
-
-        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
-            result = sim.run(batch)
-
-        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
-
-        with open(tmp_path / 'integration_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._run_and_save(repeater, config, tmp_path)
         for key in ['MAE_Mw_uT', 'RMSE_Mw_uT', 'MAE_Aw_g', 'RMSE_Aw_g']:
             assert isinstance(report['error'][key], list)
             assert len(report['error'][key]) == 3
 
     def test_report_derived_values_positive(self, repeater, config, tmp_path):
-        if not TINY_MAT.is_file():
-            pytest.skip('tiny mat fixture not found')
-        d = Data(str(TINY_MAT))
-        batch = d.batches[0]
-        sim = object.__new__(Simulator)
-        sim.binary = repeater
-        sim.cmdline = None
-
-        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
-            result = sim.run(batch)
-
-        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
-
-        with open(tmp_path / 'integration_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._run_and_save(repeater, config, tmp_path)
         derived = report['derived']
         assert derived['minimum_operating_frequency_MHz'] > 0
         assert derived['energy_per_inference_mJ'] > 0
@@ -246,43 +203,13 @@ class TestReportGeneration:
         assert derived['power_consumption_mW'] > 0
 
     def test_report_config_matches(self, repeater, config, tmp_path):
-        if not TINY_MAT.is_file():
-            pytest.skip('tiny mat fixture not found')
-        d = Data(str(TINY_MAT))
-        batch = d.batches[0]
-        sim = object.__new__(Simulator)
-        sim.binary = repeater
-        sim.cmdline = None
-
-        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
-            result = sim.run(batch)
-
-        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
-
-        with open(tmp_path / 'integration_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._run_and_save(repeater, config, tmp_path)
         assert report['config']['sample_rate'] == 5
         assert report['config']['voltage'] == 1.8
         assert report['config']['max_frequency'] == 160
 
     def test_report_has_output_count(self, repeater, config, tmp_path):
-        if not TINY_MAT.is_file():
-            pytest.skip('tiny mat fixture not found')
-        d = Data(str(TINY_MAT))
-        batch = d.batches[0]
-        sim = object.__new__(Simulator)
-        sim.binary = repeater
-        sim.cmdline = None
-
-        with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
-            result = sim.run(batch)
-
-        save_report('integration_report', 'repeater', config, batch, result, tmp_path)
-
-        with open(tmp_path / 'integration_report.json') as f:
-            report = json.load(f)
-
+        report, batch = self._run_and_save(repeater, config, tmp_path)
         assert report['benchmark']['output_count'] == len(batch['p'])
         assert report['benchmark']['output_ratio'] == 1.0
 

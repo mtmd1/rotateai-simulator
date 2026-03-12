@@ -56,7 +56,7 @@ class TestFullPipeline:
         assert report is not None
 
     def test_report_has_all_sections(self, report):
-        for section in ['name', 'data_file', 'config', 'benchmark', 'derived', 'error']:
+        for section in ['name', 'binary', 'timestamp', 'data_file', 'config', 'benchmark', 'derived', 'error']:
             assert section in report
 
     def test_report_name_contains_binary(self, report):

@@ -9,6 +9,7 @@ Created: 2026-02-25
 import sys
 import json
 import numpy as np
+from datetime import datetime
 from pathlib import Path
 
 from simulator.config import Config
@@ -37,7 +38,7 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def save_report(name: str, binary: str, config: Config, data: dict[str, np.ndarray], result: SimResult, output_path: Path) -> None:
+def save_report(binary: str, config: Config, data: dict[str, np.ndarray], result: SimResult, output_path: Path) -> None:
     '''Calculate derived estimates, error, and save them with
     the benchmarking statistics as a JSON report.'''
     (minimum_frequency,
@@ -50,10 +51,16 @@ def save_report(name: str, binary: str, config: Config, data: dict[str, np.ndarr
      rmse_mw,
      rmse_aw) = calculate_errors(data, result)
 
+    data_file = data['_source']
+    batch_name = data_file.removesuffix('.mat').replace('_', '-')
+    suffix = format(hash(result) % 0xFFFF, '04x')
+    name = f'simreport_{binary}_{batch_name}_{suffix}'
+
     report = {
         'name': name,
         'binary': binary,
-        'data_file': data['_source'],
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'data_file': data_file,
         'config': config.to_dict(),
         'benchmark': {
             'file_size_KB': r(result.benchmark.file_size / 1024),

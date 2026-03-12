@@ -10,7 +10,6 @@ import signal
 import argparse
 from tqdm import tqdm
 from pathlib import Path
-from datetime import datetime
 from functools import partial
 
 from simulator.config import Config
@@ -62,10 +61,7 @@ def simulate(args):
     for i, batch in enumerate(data):
         result = simulator.run(batch, progress=partial(tqdm, desc=f'Batch {i + 1}/{len(data)}'))
 
-        batch_name = batch['_source'].removesuffix('.mat').replace('_', '-')
-        timestamp = datetime.now().strftime('%H%M%S')
-
-        save_report(f'simreport_{binary_name}_{batch_name}_{timestamp}', binary_name, config, batch, result, output_path)
+        save_report(binary_name, config, batch, result, output_path)
     
     print('Done.')
 

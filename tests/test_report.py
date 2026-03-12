@@ -6,6 +6,7 @@ Created: 2026-02-26
  Author: Maxence Morel Dierckx
 '''
 import json
+import re
 import pytest
 import numpy as np
 from unittest.mock import MagicMock
@@ -228,29 +229,36 @@ class TestDeriveMetrics:
 class TestSaveReport:
     '''Tests for the full report generation and JSON output.'''
 
+    def _save_and_load(self, tmp_path, config=None, data=None, result=None, binary='testbin'):
+        '''Call save_report and return the parsed JSON.'''
+        config = config or _make_config()
+        if data is None:
+            n = 10
+            ground = np.random.rand(n, 3)
+            data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
+            result = result or _make_result(n, Mw=ground.copy(), Aw=ground.copy())
+        save_report(binary, config, data, result, tmp_path)
+        report_file = next(tmp_path.glob('simreport_*.json'))
+        with open(report_file) as f:
+            return json.load(f), report_file
+
     def test_creates_json_file(self, tmp_path):
-        config = _make_config()
+        _, report_file = self._save_and_load(tmp_path)
+        assert report_file.is_file()
+
+    def test_report_name_format(self, tmp_path):
         n = 10
         ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground, 'p': np.random.rand(n),
-                'M': ground, 'A': ground, '_source': 'test.mat'}
+        data = {'Mw': ground, 'Aw': ground, '_source': 'mn11_157aprh.mat'}
         result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        assert (tmp_path / 'test_report.json').is_file()
+        _, report_file = self._save_and_load(tmp_path, data=data, result=result, binary='variable')
+        assert re.match(r'simreport_variable_mn11-157aprh_[0-9a-f]{4}\.json', report_file.name)
 
     def test_json_structure(self, tmp_path):
-        config = _make_config()
-        n = 10
-        ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
-        result = _make_result(n, Mw=ground.copy(), Aw=ground.copy())
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        with open(tmp_path / 'test_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._save_and_load(tmp_path)
         assert 'name' in report
+        assert 'binary' in report
+        assert 'timestamp' in report
         assert 'data_file' in report
         assert 'config' in report
         assert 'benchmark' in report
@@ -258,16 +266,7 @@ class TestSaveReport:
         assert 'error' in report
 
     def test_benchmark_keys(self, tmp_path):
-        config = _make_config()
-        n = 10
-        ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
-        result = _make_result(n, Mw=ground, Aw=ground)
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        with open(tmp_path / 'test_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._save_and_load(tmp_path)
         bench = report['benchmark']
         assert 'file_size_KB' in bench
         assert 'peak_memory_KB' in bench
@@ -277,16 +276,7 @@ class TestSaveReport:
         assert 'output_ratio' in bench
 
     def test_benchmark_output_count(self, tmp_path):
-        config = _make_config()
-        n = 10
-        ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
-        result = _make_result(n, Mw=ground, Aw=ground)
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        with open(tmp_path / 'test_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._save_and_load(tmp_path)
         assert report['benchmark']['output_count'] == 10
         assert report['benchmark']['output_ratio'] == 1.0
 
@@ -296,25 +286,12 @@ class TestSaveReport:
         predicted = np.random.rand(3, 3)
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(10, Mw=predicted, Aw=predicted, output_indices=[1, 5, 9])
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        with open(tmp_path / 'test_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._save_and_load(tmp_path, config=config, data=data, result=result)
         assert report['benchmark']['output_count'] == 3
         assert report['benchmark']['output_ratio'] == pytest.approx(0.3)
 
     def test_derived_keys(self, tmp_path):
-        config = _make_config()
-        n = 10
-        ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
-        result = _make_result(n, Mw=ground, Aw=ground)
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        with open(tmp_path / 'test_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._save_and_load(tmp_path)
         derived = report['derived']
         assert 'minimum_operating_frequency_MHz' in derived
         assert 'energy_per_inference_mJ' in derived
@@ -322,21 +299,16 @@ class TestSaveReport:
         assert 'power_consumption_mW' in derived
 
     def test_error_keys(self, tmp_path):
-        config = _make_config()
-        n = 10
-        ground = np.random.rand(n, 3)
-        data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
-        result = _make_result(n, Mw=ground, Aw=ground)
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        with open(tmp_path / 'test_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._save_and_load(tmp_path)
         error = report['error']
         assert 'MAE_Mw_uT' in error
         assert 'RMSE_Mw_uT' in error
         assert 'MAE_Aw_g' in error
         assert 'RMSE_Aw_g' in error
+
+    def test_timestamp_format(self, tmp_path):
+        report, _ = self._save_and_load(tmp_path)
+        assert re.match(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', report['timestamp'])
 
     def test_error_values_are_3_element_lists(self, tmp_path):
         config = _make_config()
@@ -344,11 +316,7 @@ class TestSaveReport:
         ground = np.random.rand(n, 3)
         data = {'Mw': ground, 'Aw': ground, '_source': 'test.mat'}
         result = _make_result(n, Mw=np.random.rand(n, 3), Aw=np.random.rand(n, 3))
-
-        save_report('test_report', 'testbin', config, data, result, tmp_path)
-        with open(tmp_path / 'test_report.json') as f:
-            report = json.load(f)
-
+        report, _ = self._save_and_load(tmp_path, config=config, data=data, result=result)
         for key in ['MAE_Mw_uT', 'RMSE_Mw_uT', 'MAE_Aw_g', 'RMSE_Aw_g']:
             assert isinstance(report['error'][key], list)
             assert len(report['error'][key]) == 3

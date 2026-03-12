@@ -8,7 +8,6 @@ Created: 2026-02-26
 import sys
 import signal
 import pytest
-from datetime import datetime
 from unittest.mock import patch, MagicMock
 from types import SimpleNamespace
 from pathlib import Path
@@ -97,46 +96,19 @@ class TestSimulate:
 
         assert mock_save.call_count == 2
 
-    @patch('simulator.__main__.datetime')
     @patch('simulator.__main__.save_report')
     @patch('simulator.__main__.Simulator')
     @patch('simulator.__main__.Data')
     @patch('simulator.__main__.Config')
-    def test_report_name_derives_from_binary(self, MockConfig, MockData, MockSimulator, mock_save, mock_dt):
-        mock_dt.now.return_value = datetime(2026, 1, 1, 12, 30, 45)
+    def test_passes_binary_name_to_save_report(self, MockConfig, MockData, MockSimulator, mock_save):
         MockData.return_value.__iter__ = MagicMock(return_value=iter([{'_source': 'data.mat'}]))
         MockData.return_value.__len__ = MagicMock(return_value=1)
 
         args = self._make_args(binary='some/nested/path/inference')
         simulate(args)
 
-        name_arg = mock_save.call_args_list[0][0][0]
-        assert name_arg == 'simreport_inference_data_123045'
-
-    @patch('simulator.__main__.datetime')
-    @patch('simulator.__main__.save_report')
-    @patch('simulator.__main__.Simulator')
-    @patch('simulator.__main__.Data')
-    @patch('simulator.__main__.Config')
-    def test_report_name_uses_batch_name(self, MockConfig, MockData, MockSimulator, mock_save, mock_dt):
-        mock_dt.now.return_value = datetime(2026, 1, 1, 9, 5, 0)
-        batches = [
-            {'_source': 'mn11_157aprh_tiny.mat'},
-            {'_source': 'deploy_test.mat'},
-            {'_source': 'simple.mat'},
-        ]
-        MockData.return_value.__iter__ = MagicMock(return_value=iter(batches))
-        MockData.return_value.__len__ = MagicMock(return_value=3)
-
-        args = self._make_args(binary='inference')
-        simulate(args)
-
-        names = [c[0][0] for c in mock_save.call_args_list]
-        assert names == [
-            'simreport_inference_mn11-157aprh-tiny_090500',
-            'simreport_inference_deploy-test_090500',
-            'simreport_inference_simple_090500',
-        ]
+        binary_arg = mock_save.call_args_list[0][0][0]
+        assert binary_arg == 'inference'
 
     @patch('simulator.__main__.save_report')
     @patch('simulator.__main__.Simulator')
