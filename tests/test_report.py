@@ -25,12 +25,14 @@ def _make_config(**overrides):
     cfg.DMIPS_per_MHz = overrides.get('DMIPS_per_MHz', 1.5)
     cfg.uA_per_MHz = overrides.get('uA_per_MHz', 51.6)
     cfg.max_frequency = overrides.get('max_frequency', 160)
+    cfg.sleep_current_uA = overrides.get('sleep_current_uA', 10)
     cfg.to_dict.return_value = {
         'sample_rate': cfg.sample_rate,
         'voltage': cfg.voltage,
         'DMIPS_per_MHz': cfg.DMIPS_per_MHz,
         'uA_per_MHz': cfg.uA_per_MHz,
         'max_frequency': cfg.max_frequency,
+        'sleep_current_uA': cfg.sleep_current_uA,
     }
     return cfg
 
@@ -181,8 +183,8 @@ class TestDeriveMetrics:
     def test_known_values(self):
         '''Hand-calculated with:
         config: sample_rate=5, voltage=1.8, DMIPS_per_MHz=1.5, uA_per_MHz=51.6,
-                max_frequency=160
-        benchmark: total_instructions=1_000_000, N=100
+                max_frequency=160, sleep_current_uA=10
+        benchmark: total_instructions=1_000_000, N=100, output_ratio=1.0
 
         instructions_per_inference = 1_000_000 / 100 = 10_000
 
@@ -191,9 +193,11 @@ class TestDeriveMetrics:
         charge_per_inference = 51.6 * 10_000 / (1.5 * 1e6) = 0.344 uC
         energy_per_inference = 1.8 * 0.344 / 1e3 = 0.0006192 mJ
 
-        duty_cycle = (1/30) / 160 = 0.000208333...
+        duty_cycle = (1/30) / 160 = 1/4800
 
-        power_consumption = 0.0006192 * 5 = 0.003096 mW
+        power = E * f_s * r + V * I_sleep * 1e-3 * (1 - duty)
+              = 0.0006192 * 5 * 1.0 + 1.8 * 10 * 1e-3 * (1 - 1/4800)
+              = 0.003096 + 0.018 * (4799/4800)
         '''
         config = _make_config()
         bench = _make_benchmark(total_instructions=1_000_000, cpu_time=0.5)
@@ -203,7 +207,8 @@ class TestDeriveMetrics:
         assert min_freq == pytest.approx(1 / 30)
         assert energy == pytest.approx(0.0006192)
         assert duty == pytest.approx(1 / 30 / 160)
-        assert power == pytest.approx(0.003096)
+        expected_power = 0.0006192 * 5 * 1.0 + 1.8 * 10 * 1e-3 * (1 - 1/4800)
+        assert power == pytest.approx(expected_power)
 
     def test_higher_sample_rate_increases_power(self):
         config_slow = _make_config(sample_rate=1)

@@ -102,8 +102,9 @@ def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     # Duty cycle at maximum operating frequency
     duty_cycle = minimum_frequency / config.max_frequency
 
-    # Average power consumption (mW)
-    power_consumption = energy_per_inference * config.sample_rate
+    # Average power consumption (mW): active inference + sleep current
+    power_consumption = (energy_per_inference * config.sample_rate * result.output_ratio
+                         + config.voltage * config.sleep_current_uA * 1e-3 * (1 - duty_cycle))
 
     return (minimum_frequency, energy_per_inference, duty_cycle, power_consumption)
     

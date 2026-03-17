@@ -32,7 +32,7 @@ class Config:
 
         if not errors:
             values = self.extract_values(data)
-            (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.uA_per_MHz, self.max_frequency) = values
+            (self.sample_rate, self.voltage, self.DMIPS_per_MHz, self.uA_per_MHz, self.max_frequency, self.sleep_current_uA) = values
             self.cmdline = self.get_nested_value(data, 'cmdline')
 
         else:
@@ -45,7 +45,7 @@ class Config:
         '''Validate that a given config contains the necessary keys with valid values.'''
         errors: list[str] = []
         
-        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency']:
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'sleep_current_uA']:
 
             value = self.get_nested_value(config, key)
 
@@ -67,7 +67,7 @@ class Config:
         '''Extract the expected keys recursively'''
         values: list[float | int] = []
         
-        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency']:
+        for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'sleep_current_uA']:
             values.append(self.get_nested_value(config, key))
         
         return tuple(values)
@@ -92,6 +92,7 @@ class Config:
             'DMIPS_per_MHz': self.DMIPS_per_MHz,
             'uA_per_MHz': self.uA_per_MHz,
             'max_frequency': self.max_frequency,
+            'sleep_current_uA': self.sleep_current_uA,
         }
         if self.cmdline is not None:
             d['cmdline'] = self.cmdline

@@ -82,6 +82,7 @@ voltage = 1.8
 DMIPS_per_MHz = 1.5
 uA_per_MHz = 51.6
 max_frequency = 160
+sleep_current_uA = 10
 ''')
     return Config(str(path))
 

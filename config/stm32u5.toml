@@ -7,4 +7,5 @@ voltage = 1.8           # Volts
 DMIPS_per_MHz = 1.5
 uA_per_MHz = 51.6
 max_frequency = 160     # MHz
+sleep_current_uA = 10   # Stop2 mode
 # cmdline = "--offset 20"

@@ -3,3 +3,4 @@ voltage = 1
 DMIPS_per_MHz = 2
 uA_per_MHz = 50
 max_frequency = 160
+sleep_current_uA = 10
