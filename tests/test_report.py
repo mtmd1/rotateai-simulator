@@ -58,6 +58,7 @@ def _make_result(N: int, benchmark=None, Mw=None, Aw=None, output_indices=None) 
         result.Aw = Aw
     result.output_indices = output_indices if output_indices is not None else list(range(N))
     result.sample_index = len(result.output_indices)
+    result.wall_time = 0.1
     return result
 
 
@@ -195,8 +196,8 @@ class TestDeriveMetrics:
 
         duty_cycle = (1/30) / 160 = 1/4800
 
-        power = E * f_s * r + V * I_sleep * 1e-3 * (1 - duty)
-              = 0.0006192 * 5 * 1.0 + 1.8 * 10 * 1e-3 * (1 - 1/4800)
+        power = E * f_s + V * I_sleep * 1e-3 * (1 - duty)
+              = 0.0006192 * 5 + 1.8 * 10 * 1e-3 * (1 - 1/4800)
               = 0.003096 + 0.018 * (4799/4800)
         '''
         config = _make_config()
@@ -207,7 +208,7 @@ class TestDeriveMetrics:
         assert min_freq == pytest.approx(1 / 30)
         assert energy == pytest.approx(0.0006192)
         assert duty == pytest.approx(1 / 30 / 160)
-        expected_power = 0.0006192 * 5 * 1.0 + 1.8 * 10 * 1e-3 * (1 - 1/4800)
+        expected_power = 0.0006192 * 5 + 1.8 * 10 * 1e-3 * (1 - 1/4800)
         assert power == pytest.approx(expected_power)
 
     def test_higher_sample_rate_increases_power(self):
@@ -277,6 +278,8 @@ class TestSaveReport:
         assert 'peak_memory_KB' in bench
         assert 'instructions_per_inference' in bench
         assert 'FLOPS_per_inference' in bench
+        assert 'cpu_time_s' in bench
+        assert 'wall_time_s' in bench
         assert 'output_count' in bench
         assert 'output_ratio' in bench
 

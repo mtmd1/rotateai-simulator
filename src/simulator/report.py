@@ -67,6 +67,9 @@ def save_report(binary: str, config: Config, data: dict[str, np.ndarray], result
             'peak_memory_KB': result.benchmark.peak_memory,
             'instructions_per_inference': int(result.benchmark.total_instructions / result.N),
             'FLOPS_per_inference': int(result.benchmark.total_flops / result.N),
+            'simulation_time_s': r(result.benchmark.cpu_time),
+            'cpu_time_s': r(result.benchmark.cpu_time),
+            'wall_time_s': r(result.wall_time),
             'output_count': result.output_count,
             'output_ratio': r(result.output_ratio),
         },
@@ -103,7 +106,7 @@ def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     duty_cycle = minimum_frequency / config.max_frequency
 
     # Average power consumption (mW): active inference + sleep current
-    power_consumption = (energy_per_inference * config.sample_rate * result.output_ratio
+    power_consumption = (energy_per_inference * config.sample_rate
                          + config.voltage * config.sleep_current_uA * 1e-3 * (1 - duty_cycle))
 
     return (minimum_frequency, energy_per_inference, duty_cycle, power_consumption)

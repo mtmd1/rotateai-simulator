@@ -8,6 +8,7 @@ Created: 2026-02-24
 import sys
 import struct
 import subprocess
+import time
 import numpy as np
 from pathlib import Path
 
@@ -24,6 +25,7 @@ class SimResult:
         self.sample_index = 0
         self.output_indices: list[int] = []
         self.benchmark = None
+        self.wall_time = None
 
 
     def add_row(self, sample: list[float], input_index: int) -> None:
@@ -105,6 +107,7 @@ class Simulator:
         result.benchmark = benchmarker
 
         # Run the main simulation loop
+        t0 = time.monotonic()
         loop = range(steps)
         if progress:
             loop = progress(loop, total=steps)
@@ -165,6 +168,7 @@ class Simulator:
                 print(f'Binary returned invalid flag byte: {flag!r}', file=sys.stderr)
                 sys.exit(1)
 
+        result.wall_time = time.monotonic() - t0
         result.trim()
         process.stdin.close()
         remaining = process.stdout.read()
