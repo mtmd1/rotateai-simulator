@@ -41,7 +41,6 @@ def _make_benchmark(**overrides):
     '''Create a mock Benchmarker with default values.'''
     bench = MagicMock()
     bench.file_size = overrides.get('file_size', 1024)
-    bench.peak_memory = overrides.get('peak_memory', 4096)
     bench.total_instructions = overrides.get('total_instructions', 1_000_000)
     bench.total_flops = overrides.get('total_flops', 50_000)
     bench.cpu_time = overrides.get('cpu_time', 0.5)
@@ -59,6 +58,7 @@ def _make_result(N: int, benchmark=None, Mw=None, Aw=None, output_indices=None) 
     result.output_indices = output_indices if output_indices is not None else list(range(N))
     result.sample_index = len(result.output_indices)
     result.wall_time = 0.1
+    result.arena_used_bytes = 65536
     return result
 
 
@@ -275,7 +275,7 @@ class TestSaveReport:
         report, _ = self._save_and_load(tmp_path)
         bench = report['benchmark']
         assert 'file_size_KB' in bench
-        assert 'peak_memory_KB' in bench
+        assert 'memory_usage_KB' in bench
         assert 'instructions_per_inference' in bench
         assert 'FLOPS_per_inference' in bench
         assert 'cpu_time_s' in bench

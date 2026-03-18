@@ -18,7 +18,6 @@ class Benchmarker:
     def __init__(self, binary_path: Path, process: subprocess.Popen) -> None:
         '''Initialise one time measurements and start the perf process.'''
         self.file_size = binary_path.stat().st_size
-        self.peak_memory = None
         self.total_instructions = None
         self.total_flops = None
         self.cpu_time = None
@@ -105,7 +104,6 @@ class Benchmarker:
     def collect(self) -> None:
         '''Collect the results of perf and resource.getrusage.'''
         usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-        self.peak_memory = usage.ru_maxrss
         self.cpu_time = usage.ru_utime + usage.ru_stime
         
         if self.perf is not None:

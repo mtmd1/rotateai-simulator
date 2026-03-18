@@ -64,7 +64,7 @@ def save_report(binary: str, config: Config, data: dict[str, np.ndarray], result
         'config': config.to_dict(),
         'benchmark': {
             'file_size_KB': r(result.benchmark.file_size / 1024),
-            'peak_memory_KB': result.benchmark.peak_memory,
+            'memory_usage_KB': r(result.arena_used_bytes / 1024) if result.arena_used_bytes else None,
             'instructions_per_inference': int(result.benchmark.total_instructions / result.N),
             'FLOPS_per_inference': int(result.benchmark.total_flops / result.N),
             'simulation_time_s': r(result.benchmark.cpu_time),

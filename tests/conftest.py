@@ -91,7 +91,6 @@ def mock_benchmarker():
     '''Return a mock Benchmarker with realistic attributes.'''
     mock = MagicMock()
     mock.file_size = 1024
-    mock.peak_memory = 4096
     mock.total_instructions = 1_000_000
     mock.total_flops = 50_000
     mock.collect = MagicMock()

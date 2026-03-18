@@ -95,8 +95,8 @@ class TestE2EBenchmark:
     def test_has_file_size(self, report):
         assert report['benchmark']['file_size_KB'] > 0
 
-    def test_has_peak_memory(self, report):
-        assert report['benchmark']['peak_memory_KB'] is not None
+    def test_has_memory_usage(self, report):
+        assert 'memory_usage_KB' in report['benchmark']
 
     def test_has_instructions(self, report):
         assert report['benchmark']['instructions_per_inference'] > 0

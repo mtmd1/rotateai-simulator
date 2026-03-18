@@ -92,9 +92,9 @@ def _make_benchmarker(**overrides):
     '''Create a Benchmarker without running __init__.'''
     obj = object.__new__(Benchmarker)
     obj.file_size = overrides.get('file_size', 1024)
-    obj.peak_memory = overrides.get('peak_memory', None)
     obj.total_instructions = overrides.get('total_instructions', None)
     obj.total_flops = overrides.get('total_flops', None)
+    obj.cpu_time = overrides.get('cpu_time', None)
     obj.perf = overrides.get('perf', None)
     return obj
 
@@ -237,7 +237,6 @@ class TestCollect:
 
         assert b.total_instructions == 1_000_000
         assert b.total_flops == 50_000
-        assert b.peak_memory == 4096
 
     def test_zero_flops(self):
         b = _make_benchmarker(perf=_mock_perf(PERF_STDERR_ZERO_FLOPS))
@@ -324,13 +323,13 @@ class TestCollect:
         assert b.total_flops == 97_000  # 10000 + 5000 + 80000 + 2000
 
     def test_no_perf_process(self):
-        '''collect() with perf=None should still set peak_memory.'''
+        '''collect() with perf=None should still set cpu_time.'''
         b = _make_benchmarker(perf=None)
         with patch('simulator.bench.resource.getrusage') as mock_rusage:
-            mock_rusage.return_value = MagicMock(ru_maxrss=8192)
+            mock_rusage.return_value = MagicMock(ru_maxrss=8192, ru_utime=0.5, ru_stime=0.1)
             b.collect()
 
-        assert b.peak_memory == 8192
+        assert b.cpu_time == 0.6
         assert b.total_instructions is None
         assert b.total_flops is None
 

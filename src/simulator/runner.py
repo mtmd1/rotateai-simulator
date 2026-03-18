@@ -26,6 +26,7 @@ class SimResult:
         self.output_indices: list[int] = []
         self.benchmark = None
         self.wall_time = None
+        self.arena_used_bytes = None
 
 
     def add_row(self, sample: list[float], input_index: int) -> None:
@@ -175,14 +176,21 @@ class Simulator:
         if remaining:
             print(f'Warning: binary wrote {len(remaining)} extra bytes after expected output.')
         process.wait()
+        stderr = process.stderr.read().decode().strip()
         if process.returncode != 0:
-            stderr = process.stderr.read().decode().strip()
             msg = f'Binary exited with code {process.returncode}'
             if stderr:
                 msg += f': {stderr}'
             self._cleanup(process)
             print(msg, file=sys.stderr)
             sys.exit(1)
+
+        # Parse arena_used_bytes from binary stderr
+        for line in stderr.splitlines():
+            if line.startswith('arena_used_bytes:'):
+                result.arena_used_bytes = int(line.split(':')[1])
+                break
+
         benchmarker.collect()
 
         return result
