@@ -274,8 +274,8 @@ class TestSaveReport:
     def test_benchmark_keys(self, tmp_path):
         report, _ = self._save_and_load(tmp_path)
         bench = report['benchmark']
-        assert 'file_size_KB' in bench
-        assert 'memory_usage_KB' in bench
+        assert 'file_size_KiB' in bench
+        assert 'memory_usage_KiB' in bench
         assert 'instructions_per_inference' in bench
         assert 'FLOPS_per_inference' in bench
         assert 'cpu_time_s' in bench

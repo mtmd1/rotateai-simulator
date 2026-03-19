@@ -93,10 +93,10 @@ class TestE2EBenchmark:
     '''Verify benchmark section is populated.'''
 
     def test_has_file_size(self, report):
-        assert report['benchmark']['file_size_KB'] > 0
+        assert report['benchmark']['file_size_KiB'] > 0
 
     def test_has_memory_usage(self, report):
-        assert 'memory_usage_KB' in report['benchmark']
+        assert 'memory_usage_KiB' in report['benchmark']
 
     def test_has_instructions(self, report):
         assert report['benchmark']['instructions_per_inference'] > 0
