@@ -32,7 +32,7 @@ class Benchmarker:
 
         self.perf = self.open_perf_process(process.pid, perf_events)
 
-    
+
     def get_perf_events(self) -> str:
         '''Get the appropriate perf events based on platform.'''
         machine = platform.machine()
@@ -52,15 +52,15 @@ class Benchmarker:
                 return 'instructions,fp_ret_sse_avx_ops.single,fp_ret_sse_avx_ops.double'
             else:
                 return 'instructions'
-        
+
         elif 'aarch64' in machine or 'arm' in machine:
             # ARM -- couldn't confirm so let's hope we never get here!!
             return 'instructions,fp_fixed_ops_spec'
-        
+
         else:
             return 'instructions'
 
-    
+
     def validate_perf_events(self, perf_events: str) -> str:
         '''Validate perf events. Returns the (possibly reduced) event string.'''
         try:
@@ -105,7 +105,7 @@ class Benchmarker:
         '''Collect the results of perf and resource.getrusage.'''
         usage = resource.getrusage(resource.RUSAGE_CHILDREN)
         self.cpu_time = usage.ru_utime + usage.ru_stime
-        
+
         if self.perf is not None:
             _, stderr = self.perf.communicate()
 
@@ -118,7 +118,7 @@ class Benchmarker:
                     perf_results[perf_results_raw[i + 1]] = stat
                 except ValueError:
                     continue
-            
+
             self.total_instructions = 0
             self.total_flops = 0
 

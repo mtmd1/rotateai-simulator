@@ -20,8 +20,7 @@ class SimResult:
 
     def __init__(self, N: int) -> None:
         self.N = N
-        self.Mw: np.ndarray = np.zeros((N, 3))
-        self.Aw: np.ndarray = np.zeros((N, 3))
+        self.prh: np.ndarray = np.zeros((N, 3))
         self.sample_index = 0
         self.output_indices: list[int] = []
         self.benchmark = None
@@ -30,9 +29,8 @@ class SimResult:
 
 
     def add_row(self, sample: list[float], input_index: int) -> None:
-        '''Add a corrected sample. Format: awx awy awz mwx mwy mwz.'''
-        self.Aw[self.sample_index] = sample[:3]
-        self.Mw[self.sample_index] = sample[3:6]
+        '''Add a corrected sample. Format: p r h.'''
+        self.prh[self.sample_index] = sample
         self.output_indices.append(input_index)
         self.sample_index += 1
 
@@ -40,8 +38,7 @@ class SimResult:
     def trim(self) -> None:
         '''Trim pre-allocated arrays to actual output count.'''
         n = self.sample_index
-        self.Mw = self.Mw[:n]
-        self.Aw = self.Aw[:n]
+        self.prh = self.prh[:n]
 
 
     @property
@@ -86,7 +83,7 @@ class Simulator:
         '''Run the binary on the given data and return the simulation result.
         progress: optional callable(iterable, total=int) -> iterable (for tqdm).'''
         p = data['p'] # Pressure
-        M = data['M'] # Magnetometer
+        # Magnetometer is ignored
         A = data['A'] # Accelerometer
         steps = len(A) # Data lengths all the same (from data.py)
         result = SimResult(steps)
@@ -114,11 +111,10 @@ class Simulator:
             loop = progress(loop, total=steps)
         for i in loop:
 
-            # Input contract ax ay az mx my mz p
+            # Input contract ax ay az p
             sample = struct.pack(
-                '7f',
+                '4f',
                 A[i][0], A[i][1], A[i][2],
-                M[i][0], M[i][1], M[i][2],
                 p[i]
             )
 
@@ -148,15 +144,15 @@ class Simulator:
                 sys.exit(1)
 
             if flag == b'\x01':
-                # Output follows: 6 float32s = 24 bytes
-                output = process.stdout.read(24)
-                if len(output) != 24:
+                # Output follows: 3 float32s = 12 bytes (pitch, roll, heading in radians)
+                output = process.stdout.read(12)
+                if len(output) != 12:
                     self._cleanup(process)
-                    print(f'Binary returned {len(output)} bytes, expected 24.', file=sys.stderr)
+                    print(f'Binary returned {len(output)} bytes, expected 12.', file=sys.stderr)
                     sys.exit(1)
 
                 try:
-                    corrected_sample = struct.unpack('6f', output)
+                    corrected_sample = struct.unpack('3f', output)
                 except struct.error as e:
                     self._cleanup(process)
                     print(f'Parsing binary output failed: {e}', file=sys.stderr)

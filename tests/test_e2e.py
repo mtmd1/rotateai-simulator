@@ -136,21 +136,21 @@ class TestE2EError:
     '''Verify error metrics structure and values.'''
 
     def test_error_keys_present(self, report):
-        for key in ['MAE_Mw_uT', 'RMSE_Mw_uT', 'MAE_Aw_g', 'RMSE_Aw_g']:
+        for key in ['MAE_PRH_rad', 'RMSE_PRH_rad', 'MAE_Aw_g', 'RMSE_Aw_g']:
             assert key in report['error']
 
     def test_error_values_are_3_element_lists(self, report):
-        for key in ['MAE_Mw_uT', 'RMSE_Mw_uT', 'MAE_Aw_g', 'RMSE_Aw_g']:
+        for key in ['MAE_PRH_rad', 'RMSE_PRH_rad', 'MAE_Aw_g', 'RMSE_Aw_g']:
             assert isinstance(report['error'][key], list)
             assert len(report['error'][key]) == 3
 
     def test_errors_are_nonzero(self, report):
-        '''Repeater echoes raw inputs, not real predictions, so error > 0.'''
-        for key in ['MAE_Mw_uT', 'MAE_Aw_g']:
+        '''Repeater echoes raw inputs (treated as fake angles), so error > 0.'''
+        for key in ['MAE_PRH_rad', 'MAE_Aw_g']:
             assert all(v > 0 for v in report['error'][key])
 
     def test_rmse_geq_mae(self, report):
-        for metric in ['Mw_uT', 'Aw_g']:
+        for metric in ['PRH_rad', 'Aw_g']:
             mae = report['error'][f'MAE_{metric}']
             rmse = report['error'][f'RMSE_{metric}']
             for m, r in zip(mae, rmse):

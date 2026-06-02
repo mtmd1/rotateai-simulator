@@ -13,31 +13,31 @@ from simulator.data import Data
 
 # MARK: fixtures
 
+def _valid_dict(n: int = 100) -> dict:
+    return {
+        'A': np.random.rand(n, 3),
+        'Aw': np.random.rand(n, 3),
+        'p': np.random.rand(n),
+        'pitch': np.random.rand(n),
+        'roll': np.random.rand(n),
+        'head': np.random.rand(n),
+    }
+
+
 @pytest.fixture
 def valid_mat(tmp_path) -> str:
     '''Generate a temporary valid .mat file and return its path'''
-    data = {
-        'A': np.random.rand(100, 3),
-        'M': np.random.rand(100, 3),
-        'Aw': np.random.rand(100, 3),
-        'Mw': np.random.rand(100, 3),
-        'p': np.random.rand(100),
-    }
     path = tmp_path / 'valid.mat'
-    sio.savemat(path, data)
+    sio.savemat(path, _valid_dict(100))
     return str(path)
 
 
 @pytest.fixture
 def bad_lengths_mat(tmp_path) -> str:
     '''Generate a temporary .mat file with inconsistent lengths and return its path.'''
-    data = {
-        'A': np.random.rand(100, 3),
-        'M': np.random.rand(90, 3),
-        'Aw': np.random.rand(100, 3),
-        'Mw': np.random.rand(110, 3),
-        'p': np.random.rand(100),
-    }
+    data = _valid_dict(100)
+    data['Aw'] = np.random.rand(110, 3)
+    data['head'] = np.random.rand(90)
     path = tmp_path / 'bad_lengths.mat'
     sio.savemat(path, data)
     return str(path)
@@ -46,13 +46,9 @@ def bad_lengths_mat(tmp_path) -> str:
 @pytest.fixture
 def bad_shapes_mat(tmp_path) -> str:
     '''Generate a temporary .mat file with wrong shapes and return its path.'''
-    data = {
-        'A': np.random.rand(100, 3),
-        'M': np.random.rand(100, 2, 3),
-        'Aw': np.random.rand(100, 3),
-        'Mw': np.random.rand(100, 2),
-        'p': np.random.rand(100),
-    }
+    data = _valid_dict(100)
+    data['A'] = np.random.rand(100, 2, 3)
+    data['Aw'] = np.random.rand(100, 2)
     path = tmp_path / 'bad_shapes.mat'
     sio.savemat(path, data)
     return str(path)
@@ -75,14 +71,7 @@ def valid_mat_dir(tmp_path) -> str:
     '''Generate a directory with multiple valid .mat files.'''
     for i in range(3):
         n = 50 + i * 10
-        data = {
-            'A': np.random.rand(n, 3),
-            'M': np.random.rand(n, 3),
-            'Aw': np.random.rand(n, 3),
-            'Mw': np.random.rand(n, 3),
-            'p': np.random.rand(n),
-        }
-        sio.savemat(tmp_path / f'file_{i}.mat', data)
+        sio.savemat(tmp_path / f'file_{i}.mat', _valid_dict(n))
     return str(tmp_path)
 
 
@@ -93,20 +82,13 @@ class TestValidate:
 
     def _make_data(self, **overrides):
         '''Build a valid data dict, then apply overrides.'''
-        base = {
-            'A': np.random.rand(100, 3),
-            'M': np.random.rand(100, 3),
-            'Aw': np.random.rand(100, 3),
-            'Mw': np.random.rand(100, 3),
-            'p': np.random.rand(100),
-        }
+        base = _valid_dict(100)
         base.update(overrides)
         return base
 
     def _validator(self):
         '''Return a Data instance without running __init__.'''
-        obj = object.__new__(Data)
-        return obj
+        return object.__new__(Data)
 
     def test_valid_data_no_errors(self):
         errors = self._validator().validate(self._make_data())
@@ -114,24 +96,24 @@ class TestValidate:
 
     def test_missing_single_key(self):
         data = self._make_data()
-        del data['Mw']
+        del data['Aw']
         errors = self._validator().validate(data)
-        assert any('Missing variable Mw' in e for e in errors)
+        assert any('Missing variable Aw' in e for e in errors)
 
     def test_missing_multiple_keys(self):
         data = self._make_data()
         del data['A']
-        del data['M']
+        del data['pitch']
         del data['p']
         errors = self._validator().validate(data)
         assert any('Missing variable A' in e for e in errors)
-        assert any('Missing variable M' in e for e in errors)
+        assert any('Missing variable pitch' in e for e in errors)
         assert any('Missing variable p' in e for e in errors)
 
     def test_wrong_shape_matrix_not_nx3(self):
-        data = self._make_data(M=np.random.rand(100, 4))
+        data = self._make_data(A=np.random.rand(100, 4))
         errors = self._validator().validate(data)
-        assert any('Wrong shape' in e and 'M' in e for e in errors)
+        assert any('Wrong shape' in e and 'A' in e for e in errors)
 
     def test_wrong_shape_matrix_3d(self):
         data = self._make_data(Aw=np.random.rand(100, 2, 3))
@@ -143,13 +125,18 @@ class TestValidate:
         errors = self._validator().validate(data)
         assert any('Wrong shape' in e and 'p' in e for e in errors)
 
+    def test_wrong_shape_pitch_not_1d(self):
+        data = self._make_data(pitch=np.random.rand(100, 3))
+        errors = self._validator().validate(data)
+        assert any('Wrong shape' in e and 'pitch' in e for e in errors)
+
     def test_inconsistent_lengths(self):
-        data = self._make_data(M=np.random.rand(50, 3))
+        data = self._make_data(head=np.random.rand(50))
         errors = self._validator().validate(data)
         assert any('Inconsistent data lengths' in e for e in errors)
 
     def test_extra_keys_ignored(self):
-        data = self._make_data(fs=5, roll=np.random.rand(100))
+        data = self._make_data(fs=5, M=np.random.rand(100, 3), Mw=np.random.rand(100, 3))
         errors = self._validator().validate(data)
         assert errors == []
 

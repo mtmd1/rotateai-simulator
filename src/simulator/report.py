@@ -11,6 +11,7 @@ import json
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+from scipy.spatial.transform import Rotation
 
 from simulator.config import Config
 from simulator.runner import SimResult
@@ -46,10 +47,7 @@ def save_report(binary: str, config: Config, data: dict[str, np.ndarray], result
      duty_cycle,
      power_consumption) = derive_metrics(config, result)
 
-    (mae_mw,
-     mae_aw,
-     rmse_mw,
-     rmse_aw) = calculate_errors(data, result)
+    errors = calculate_errors(data, result)
 
     data_file = data['_source']
     batch_name = data_file.removesuffix('.mat').replace('_', '-')
@@ -80,16 +78,16 @@ def save_report(binary: str, config: Config, data: dict[str, np.ndarray], result
             'power_consumption_mW': r(power_consumption),
         },
         'error': {
-            'MAE_Mw_uT': r(mae_mw),
-            'RMSE_Mw_uT': r(rmse_mw),
-            'MAE_Aw_g': r(mae_aw),
-            'RMSE_Aw_g': r(rmse_aw),
+            'MAE_PRH_rad': r(errors['mae_prh']),
+            'RMSE_PRH_rad': r(errors['rmse_prh']),
+            'MAE_Aw_g': r(errors['mae_aw']),
+            'RMSE_Aw_g': r(errors['rmse_aw']),
         }
     }
     with open(output_path / f'{name}.json', 'w') as f:
         json.dump(report, f, indent=4, cls=NumpyEncoder)
-    
-    
+
+
 def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
     '''Return the estimated values derived as shown in docs/derivations.pdf.'''
 
@@ -110,26 +108,30 @@ def derive_metrics(config: Config, result: SimResult) -> tuple[float]:
                          + config.voltage * config.sleep_current_uA * 1e-3 * (1 - duty_cycle))
 
     return (minimum_frequency, energy_per_inference, duty_cycle, power_consumption)
-    
 
-def calculate_errors(data: dict[str, np.ndarray], result: SimResult) -> tuple[tuple[float]]:
-    '''Return the MAE and RMSE values for Aw and Mw over all input samples.
+
+def calculate_errors(data: dict[str, np.ndarray], result: SimResult) -> dict[str, np.ndarray]:
+    '''Return the MAE and RMSE values for P, R, H and Aw over all input samples.
     Sparse predictions are linearly interpolated to full length before comparison.'''
-    N = len(data['Mw'])
+    N = len(data['Aw'])
     x_out = np.array(result.output_indices)
     x_all = np.arange(N)
 
-    predicted_Mw = np.column_stack([np.interp(x_all, x_out, result.Mw[:, c]) for c in range(3)])
-    predicted_Aw = np.column_stack([np.interp(x_all, x_out, result.Aw[:, c]) for c in range(3)])
+    predicted_prh = np.column_stack([np.interp(x_all, x_out, result.prh[:, c]) for c in range(3)])
+    euler_zyx = np.column_stack([predicted_prh[:, 2], -predicted_prh[:, 0], predicted_prh[:, 1]])
+    predicted_Aw = Rotation.from_euler('ZYX', euler_zyx).apply(data['A'].astype('float'))
 
-    ground_Mw = data['Mw'].astype('float')
+    ground_prh = np.column_stack([data['pitch'], data['roll'], data['head']]).astype('float')
     ground_Aw = data['Aw'].astype('float')
 
-    mae_mw = np.mean(np.abs(ground_Mw - predicted_Mw), axis=0)
-    mae_aw = np.mean(np.abs(ground_Aw - predicted_Aw), axis=0)
+    # Wrap PRH residuals to (-pi, pi] so heading errors don't blow up at the discontinuity
+    prh_diff = np.arctan2(np.sin(ground_prh - predicted_prh), np.cos(ground_prh - predicted_prh))
+    aw_diff = ground_Aw - predicted_Aw
 
-    rmse_mw = np.sqrt(np.mean((ground_Mw - predicted_Mw) ** 2, axis=0))
-    rmse_aw = np.sqrt(np.mean((ground_Aw - predicted_Aw) ** 2, axis=0))
-
-    return (mae_mw, mae_aw, rmse_mw, rmse_aw)
+    return {
+        'mae_prh': np.mean(np.abs(prh_diff), axis=0),
+        'rmse_prh': np.sqrt(np.mean(prh_diff ** 2, axis=0)),
+        'mae_aw': np.mean(np.abs(aw_diff), axis=0),
+        'rmse_aw': np.sqrt(np.mean(aw_diff ** 2, axis=0)),
+    }
 

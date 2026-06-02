@@ -44,7 +44,7 @@ class Config:
     def validate(self, config: dict) -> list[str]:
         '''Validate that a given config contains the necessary keys with valid values.'''
         errors: list[str] = []
-        
+
         for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'sleep_current_uA']:
 
             value = self.get_nested_value(config, key)
@@ -62,14 +62,14 @@ class Config:
 
         return errors
 
-    
+
     def extract_values(self, config: dict) -> tuple[float | int]:
         '''Extract the expected keys recursively'''
         values: list[float | int] = []
-        
+
         for key in ['sample_rate', 'voltage', 'DMIPS_per_MHz', 'uA_per_MHz', 'max_frequency', 'sleep_current_uA']:
             values.append(self.get_nested_value(config, key))
-        
+
         return tuple(values)
 
 
@@ -83,7 +83,7 @@ class Config:
                 if result is not None:
                     return result
 
-    
+
     def to_dict(self) -> dict[str, float | int]:
         '''Return the config values as a flat dict.'''
         d = {

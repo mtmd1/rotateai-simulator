@@ -71,17 +71,17 @@ class Data:
             print(f'Data path {data_path} not found.', file=sys.stderr)
             sys.exit(1)
 
-    
+
     def __iter__(self):
         '''Return batches.'''
         return iter(self.batches)
 
-    
+
     def __len__(self) -> int:
         '''Return the number of batches.'''
         return len(self.batches)
-    
-    
+
+
     def load_mat_file(self, path: Path) -> dict[str, np.ndarray] | None:
         '''Load a single mat file into a dict of variable to numpy arrays.'''
         try:
@@ -93,14 +93,17 @@ class Data:
         except Exception as e:
             print(f'Unexpected error in load_mat_file: {e}', file=sys.stderr)
         return None
-    
-    
+
+
     def validate(self, data: dict[str, np.ndarray]) -> list[str]:
         '''Validate that a given mat file contains the necessary keys and shapes.'''
         errors: list[str] = []
         data_lengths: dict[str, int] = {}
-        
-        for key in ['A', 'M', 'Aw', 'Mw', 'p']:
+
+        keys_1d = ['p', 'pitch', 'roll', 'head']
+        keys_2d = ['A', 'Aw']
+
+        for key in keys_1d + keys_2d:
 
             if key not in data:
                 errors.append(f'Missing variable {key}')
@@ -110,16 +113,16 @@ class Data:
                 data_lengths[key] = shape[0]
                 mode_data_length = max(set(data_lengths.values()), key=list(data_lengths.values()).count)
 
-                if key == 'p':
+                if key in keys_1d:
                     if len(shape) != 1:
-                        errors.append(f'Wrong shape {shape} for key p: expected ({mode_data_length},)')
+                        errors.append(f'Wrong shape {shape} for key {key}: expected ({mode_data_length},)')
 
-                else: # A, M, Aw, Mw
+                else:
                     if len(shape) != 2 or shape[-1] != 3:
                         errors.append(f'Wrong shape {shape} for key {key}: expected ({mode_data_length}, 3)')
-        
+
         unique_data_lengths = set(data_lengths.values())
         if len(unique_data_lengths) != 1:
             errors.append(f'Inconsistent data lengths {unique_data_lengths}')
-        
+
         return errors

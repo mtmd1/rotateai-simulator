@@ -4,12 +4,12 @@
 
 int main()
 {
-    float in[7];
+    float in[4];
     uint8_t flag = 0x01;
 
-    while (fread(in, sizeof(float), 7, stdin) == 7) {
+    while (fread(in, sizeof(float), 4, stdin) == 4) {
         fwrite(&flag, 1, 1, stdout);
-        fwrite(in, sizeof(float), 6, stdout);
+        fwrite(in, sizeof(float), 3, stdout);
         fflush(stdout);
     }
     return 0;

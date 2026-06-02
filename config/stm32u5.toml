@@ -8,4 +8,4 @@ DMIPS_per_MHz = 1.5
 uA_per_MHz = 51.6
 max_frequency = 160     # MHz
 sleep_current_uA = 10   # uA
-# cmdline = "--strategy start --surface-depth 5 --dive-depth 10"
+cmdline = "--strategy start --surface-depth 5 --dive-depth 10"

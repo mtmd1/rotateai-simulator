@@ -32,7 +32,7 @@ class TestDataLoading:
             pytest.skip('tiny mat fixture not found')
         d = Data(str(TINY_MAT))
         batch = d.batches[0]
-        for key in ['A', 'M', 'Aw', 'Mw', 'p', '_source']:
+        for key in ['A', 'Aw', 'p', 'pitch', 'roll', 'head', '_source']:
             assert key in batch
 
     def test_batch_shapes_consistent(self):
@@ -42,9 +42,10 @@ class TestDataLoading:
         batch = d.batches[0]
         n = len(batch['p'])
         assert batch['A'].shape == (n, 3)
-        assert batch['M'].shape == (n, 3)
         assert batch['Aw'].shape == (n, 3)
-        assert batch['Mw'].shape == (n, 3)
+        assert batch['pitch'].shape == (n,)
+        assert batch['roll'].shape == (n,)
+        assert batch['head'].shape == (n,)
 
     def test_source_is_filename(self):
         if not TINY_MAT.is_file():
@@ -86,14 +87,13 @@ class TestSimulateWithRepeater:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        assert result.Mw.shape == (n, 3)
-        assert result.Aw.shape == (n, 3)
+        assert result.prh.shape == (n, 3)
 
     def test_repeater_echoes_values(self, repeater):
-        '''Repeater writes back the first 6 of 7 input floats.
-        Input:  ax ay az mx my mz p
-        Output: ax ay az mx my mz
-        So Aw = (ax, ay, az) and Mw = (mx, my, mz).'''
+        '''Repeater writes back the first 3 of 4 input floats.
+        Input:  ax ay az p
+        Output: ax ay az
+        So result.prh = (ax, ay, az) for each sample.'''
         if not TINY_MAT.is_file():
             pytest.skip('tiny mat fixture not found')
         d = Data(str(TINY_MAT))
@@ -106,10 +106,8 @@ class TestSimulateWithRepeater:
             result = sim.run(batch)
 
         for i in range(len(batch['p'])):
-            expected_aw = np.float32([batch['A'][i][0], batch['A'][i][1], batch['A'][i][2]])
-            expected_mw = np.float32([batch['M'][i][0], batch['M'][i][1], batch['M'][i][2]])
-            np.testing.assert_allclose(result.Aw[i], expected_aw, atol=1e-7)
-            np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
+            expected = np.float32([batch['A'][i][0], batch['A'][i][1], batch['A'][i][2]])
+            np.testing.assert_allclose(result.prh[i], expected, atol=1e-7)
 
 
 # MARK: error calculation
@@ -118,8 +116,8 @@ class TestErrorWithRepeater:
     '''Test error calculations using repeater output against ground truth.'''
 
     def test_errors_are_nonzero(self, repeater):
-        '''Since repeater echoes raw inputs, not real predictions,
-        the error against ground truth Mw/Aw should be nonzero.'''
+        '''Repeater echoes raw inputs (treated as fake angles),
+        so PRH and Aw error against ground truth should be nonzero.'''
         if not TINY_MAT.is_file():
             pytest.skip('tiny mat fixture not found')
         d = Data(str(TINY_MAT))
@@ -131,11 +129,11 @@ class TestErrorWithRepeater:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        mae_mw, mae_aw, rmse_mw, rmse_aw = calculate_errors(batch, result)
-        assert np.all(mae_mw > 0)
-        assert np.all(mae_aw > 0)
-        assert np.all(rmse_mw >= mae_mw)
-        assert np.all(rmse_aw >= mae_aw)
+        errs = calculate_errors(batch, result)
+        assert np.all(errs['mae_prh'] > 0)
+        assert np.all(errs['mae_aw'] > 0)
+        assert np.all(errs['rmse_prh'] >= errs['mae_prh'] - 1e-12)
+        assert np.all(errs['rmse_aw'] >= errs['mae_aw'] - 1e-12)
 
     def test_errors_are_per_axis(self, repeater):
         if not TINY_MAT.is_file():
@@ -149,11 +147,11 @@ class TestErrorWithRepeater:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        mae_mw, mae_aw, rmse_mw, rmse_aw = calculate_errors(batch, result)
-        assert mae_mw.shape == (3,)
-        assert mae_aw.shape == (3,)
-        assert rmse_mw.shape == (3,)
-        assert rmse_aw.shape == (3,)
+        errs = calculate_errors(batch, result)
+        assert errs['mae_prh'].shape == (3,)
+        assert errs['mae_aw'].shape == (3,)
+        assert errs['rmse_prh'].shape == (3,)
+        assert errs['rmse_aw'].shape == (3,)
 
 
 # MARK: report
@@ -190,7 +188,7 @@ class TestReportGeneration:
 
     def test_report_error_values_are_3_element_lists(self, repeater, config, tmp_path):
         report, _ = self._run_and_save(repeater, config, tmp_path)
-        for key in ['MAE_Mw_uT', 'RMSE_Mw_uT', 'MAE_Aw_g', 'RMSE_Aw_g']:
+        for key in ['MAE_PRH_rad', 'RMSE_PRH_rad', 'MAE_Aw_g', 'RMSE_Aw_g']:
             assert isinstance(report['error'][key], list)
             assert len(report['error'][key]) == 3
 
@@ -233,8 +231,7 @@ class TestSimulateWithSkipper:
             result = sim.run(batch)
 
         assert result.output_count == n // 2
-        assert result.Mw.shape == (n // 2, 3)
-        assert result.Aw.shape == (n // 2, 3)
+        assert result.prh.shape == (n // 2, 3)
 
     def test_error_alignment_with_sparse_output(self, skipper):
         '''Errors should align ground truth by output indices.'''
@@ -249,6 +246,6 @@ class TestSimulateWithSkipper:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(batch)
 
-        mae_mw, mae_aw, rmse_mw, rmse_aw = calculate_errors(batch, result)
-        assert mae_mw.shape == (3,)
-        assert np.all(rmse_mw >= mae_mw)
+        errs = calculate_errors(batch, result)
+        assert errs['mae_prh'].shape == (3,)
+        assert np.all(errs['rmse_prh'] >= errs['mae_prh'] - 1e-12)

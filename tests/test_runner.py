@@ -19,10 +19,11 @@ def _make_data(n: int = 10) -> dict[str, np.ndarray]:
     '''Build a small valid data dict.'''
     return {
         'A': np.random.rand(n, 3),
-        'M': np.random.rand(n, 3),
         'Aw': np.random.rand(n, 3),
-        'Mw': np.random.rand(n, 3),
         'p': np.random.rand(n),
+        'pitch': np.random.rand(n),
+        'roll': np.random.rand(n),
+        'head': np.random.rand(n),
     }
 
 
@@ -41,49 +42,39 @@ class TestSimResult:
 
     def test_init_shapes(self):
         r = SimResult(50)
-        assert r.Mw.shape == (50, 3)
-        assert r.Aw.shape == (50, 3)
+        assert r.prh.shape == (50, 3)
         assert r.sample_index == 0
         assert r.output_indices == []
         assert r.benchmark is None
 
-    def test_add_row_splits_correctly(self):
+    def test_add_row_stores_three_values(self):
         r = SimResult(1)
-        r.add_row([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 0)
-        np.testing.assert_array_equal(r.Aw[0], [1.0, 2.0, 3.0])
-        np.testing.assert_array_equal(r.Mw[0], [4.0, 5.0, 6.0])
+        r.add_row([1.0, 2.0, 3.0], 0)
+        np.testing.assert_array_equal(r.prh[0], [1.0, 2.0, 3.0])
         assert r.sample_index == 1
         assert r.output_indices == [0]
-
-    def test_add_row_ignores_extra_values(self):
-        r = SimResult(1)
-        r.add_row([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], 0)
-        np.testing.assert_array_equal(r.Aw[0], [1.0, 2.0, 3.0])
-        np.testing.assert_array_equal(r.Mw[0], [4.0, 5.0, 6.0])
 
     def test_add_multiple_rows(self):
         r = SimResult(3)
         for i in range(3):
-            r.add_row([float(i)] * 6, i)
+            r.add_row([float(i)] * 3, i)
         assert r.sample_index == 3
         assert r.output_indices == [0, 1, 2]
         for i in range(3):
-            np.testing.assert_array_equal(r.Mw[i], [float(i)] * 3)
-            np.testing.assert_array_equal(r.Aw[i], [float(i)] * 3)
+            np.testing.assert_array_equal(r.prh[i], [float(i)] * 3)
 
     def test_trim_slices_arrays(self):
         r = SimResult(10)
-        r.add_row([1.0] * 6, 0)
-        r.add_row([2.0] * 6, 3)
+        r.add_row([1.0] * 3, 0)
+        r.add_row([2.0] * 3, 3)
         r.trim()
-        assert r.Mw.shape == (2, 3)
-        assert r.Aw.shape == (2, 3)
+        assert r.prh.shape == (2, 3)
         assert r.output_indices == [0, 3]
 
     def test_output_count_and_ratio(self):
         r = SimResult(10)
-        r.add_row([1.0] * 6, 0)
-        r.add_row([2.0] * 6, 5)
+        r.add_row([1.0] * 3, 0)
+        r.add_row([2.0] * 3, 5)
         assert r.output_count == 2
         assert r.output_ratio == 0.2
 
@@ -137,10 +128,10 @@ class TestSimulatorRun:
         mock_bench.collect.assert_called_once()
 
     def test_repeater_echoes_input(self, repeater):
-        '''Repeater reads 7 float32s and writes back the first 6.
-        Input is: ax ay az mx my mz p
-        Output is: ax ay az mx my mz
-        So Aw gets (ax, ay, az) and Mw gets (mx, my, mz).
+        '''Repeater reads 4 float32s and writes back the first 3.
+        Input is: ax ay az p
+        Output is: ax ay az
+        So result.prh receives (ax, ay, az) for each sample.
         Values go through float64->float32->float64 so we use atol for precision.'''
         sim = _make_simulator(repeater)
         n = 5
@@ -149,10 +140,8 @@ class TestSimulatorRun:
             result = sim.run(data)
 
         for i in range(n):
-            expected_aw = np.float32([data['A'][i][0], data['A'][i][1], data['A'][i][2]])
-            expected_mw = np.float32([data['M'][i][0], data['M'][i][1], data['M'][i][2]])
-            np.testing.assert_allclose(result.Aw[i], expected_aw, atol=1e-7)
-            np.testing.assert_allclose(result.Mw[i], expected_mw, atol=1e-7)
+            expected = np.float32([data['A'][i][0], data['A'][i][1], data['A'][i][2]])
+            np.testing.assert_allclose(result.prh[i], expected, atol=1e-7)
 
     def test_run_single_step(self, repeater):
         sim = _make_simulator(repeater)
@@ -160,8 +149,7 @@ class TestSimulatorRun:
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(data)
         assert result.sample_index == 1
-        assert result.Mw.shape == (1, 3)
-        assert result.Aw.shape == (1, 3)
+        assert result.prh.shape == (1, 3)
 
     def test_run_output_count_equals_input(self, repeater):
         '''Repeater outputs every sample, so output_count == input count.'''
@@ -204,8 +192,7 @@ class TestSimulatorRunSkipper:
         data = _make_data(n)
         with patch('simulator.runner.Benchmarker', return_value=mock_benchmarker()):
             result = sim.run(data)
-        assert result.Mw.shape == (5, 3)
-        assert result.Aw.shape == (5, 3)
+        assert result.prh.shape == (5, 3)
 
     def test_skipper_echoes_correct_values(self, skipper):
         '''Skipper outputs odd-indexed samples. Verify echoed values match.'''
@@ -216,10 +203,8 @@ class TestSimulatorRunSkipper:
             result = sim.run(data)
 
         for out_idx, in_idx in enumerate(result.output_indices):
-            expected_aw = np.float32([data['A'][in_idx][0], data['A'][in_idx][1], data['A'][in_idx][2]])
-            expected_mw = np.float32([data['M'][in_idx][0], data['M'][in_idx][1], data['M'][in_idx][2]])
-            np.testing.assert_allclose(result.Aw[out_idx], expected_aw, atol=1e-7)
-            np.testing.assert_allclose(result.Mw[out_idx], expected_mw, atol=1e-7)
+            expected = np.float32([data['A'][in_idx][0], data['A'][in_idx][1], data['A'][in_idx][2]])
+            np.testing.assert_allclose(result.prh[out_idx], expected, atol=1e-7)
 
 
 # MARK: Binary error propagation
