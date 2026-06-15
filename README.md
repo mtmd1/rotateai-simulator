@@ -60,11 +60,11 @@ See `docs/derivations.pdf` for how derived metrics are estimated.
 
 The inference binary communicates over stdin/stdout in lock-step. For each input sample:
 
-- **Input**: 7 float32s — `ax, ay, az, mx, my, mz, p` (28 bytes)
+- **Input**: 4 float32s — `ax, ay, az, p` (16 bytes)
 - **Flag byte**: 1 byte — `0x01` if output follows, `0x00` if no output for this sample
-- **Output** (only when flag is `0x01`): 6 float32s — `awx, awy, awz, mwx, mwy, mwz` (24 bytes)
+- **Output** (only when flag is `0x01`): 3 float32s — `pitch, roll, heading` in radians (12 bytes)
 
-The binary must write the flag byte after consuming each input sample, and flush stdout after each response. Binaries that produce output on every sample write `0x01` followed by 24 bytes each time.
+The binary must write the flag byte after consuming each input sample, and flush stdout after each response. Binaries that produce output on every sample write `0x01` followed by 12 bytes each time.
 
 ## Testing
 
