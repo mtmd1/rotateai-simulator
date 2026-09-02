@@ -29,18 +29,18 @@ def validate_output_path(output_path_str: str) -> Path:
     '''Validate that the output path exists.'''
     if output_path_str is None:
         return Path.cwd()
-    
+
     output_path = Path(output_path_str)
     if not output_path.is_absolute():
         output_path = Path.cwd() / output_path_str
-    
+
     if output_path.is_file():
         print(f'Output path {output_path} is not a directory.', file=sys.stderr)
         sys.exit(1)
-    
+
     if output_path.is_dir():
         return output_path
-    
+
     else:
         try:
             output_path.mkdir(parents=True)
@@ -62,7 +62,7 @@ def simulate(args):
         result = simulator.run(batch, progress=partial(tqdm, desc=f'Batch {i + 1}/{len(data)}'))
 
         save_report(binary_name, config, batch, result, output_path)
-    
+
     print('Done.')
 
 

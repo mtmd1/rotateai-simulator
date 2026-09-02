@@ -1,0 +1,94 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{upgreek}
+
+\newcommand{\bigformula}[1]{{\Large \begin{equation} #1 \end{equation}}}
+
+\title{RotateAI Simulator Derivations}
+\author{Maxence Morel Dierckx}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Disclaimer}
+% General overview of MCU, ISA, CPU core benchmarking and power statistics calculations and why a vast majority of ours are absolutely unrelated to the eventual hardware
+
+The simulator runs x86 binaries and measures x86 instruction counts. All derived metrics use these counts as proxies for ARM Cortex-M33 execution. Important disclaimers:
+
+\begin{enumerate}
+	\item x86 instructions are not the same as ARM instructions. Different Instruction Set Architectures (ISAs) produce different instruction counts for identical computation.
+	\item x86 vectorises float32s to perform 4-8 floating point operations in a single instruction. The M33 architecture does not implement this ``Single Instruction Multiple Data'' (SIMD) technology, so simulator results will heavily undercount the FLOPS of an actual tag.
+	\item All hardware-specific constants (voltage, current draw, DMIPS, maximum frequency) are configurable. Actual values vary with peripheral activity, temperature, and process variation.
+	\item Binaries that do not produce output on every sample still incur minimal flag-byte I/O overhead per idle sample in the simulator protocol. This overhead would not be present on actual hardware.
+\end{enumerate}
+
+The derived values should be interpreted as \textbf{fermi estimates} of eventual characteristics. They have utility as estimates of feasibility and for relative comparison of different model pipelines. They should not be used as engineering specifications.
+
+\section{Variables}
+
+\begin{tabular}{l l l}
+	\textbf{Symbol} & \textbf{Description} & \textbf{Source} \\
+	\hline
+	$N$ & Average instructions per input sample & \verb|perf stat| / sample count \\
+	$f_s$ & Sample rate (Hz) & Config \\
+	$f_{\max}$ & Maximum operating frequency (MHz) & Config \\
+	$D$ & DMIPS per MHz & Config \\
+	$\mu$ & Current per MHz ($\upmu$A/MHz) & Config \\
+	$V$ & Supply voltage (V) & Config \\
+	$I_s$ & Sleep-mode current ($\upmu$A) & Config \\
+\end{tabular}
+
+\section{Minimum Operating Frequency}
+
+The Minimum Operating Frequency is the minimum CPU frequency for which the required instructions per inference can be completed in the given sample period (e.g., 200 ms at 5 Hz).
+
+\begin{itemize}
+	\item The sample period is the reciprocal of the sample rate $f_s$. 
+
+	\item The Dhrystone Million Instructions Per Second (DMIPS) per MHz (s$^{-1}$MHz$^{-1}$) determines the number of instructions our processor can execute per unit time. We multiply by $10^6$ to convert to s$^{-1}$Hz$^{-1}$.
+\end{itemize}
+
+\bigformula{f_{\min} = \frac{N \cdot f_s}{D \cdot 10^6}}
+\\
+\\
+Note that DMIPS is a benchmark-specific metric. \href{https://homepages.cwi.nl/~steven/dry.c}{Dhrystone} is an integer performance benchmark, which means it differs significantly from floating-point-heavy ML inference. Using $D$ as a proxy for the general throughput of the processor is erroneous, but it is the best option STM publishes.
+
+\section{Energy Per Inference}
+
+Energy is the product of voltage, current, and time.
+
+\begin{itemize}
+	\item At a given frequency $f$, the MCU draws $\mu \cdot f$ microamps of current.
+	\item One inference takes $N / (f \cdot D \cdot 10^6)$ seconds to complete.
+\end{itemize}
+
+{\Large
+$$E = V \cdot (\mu \cdot f) \cdot \frac{N}{f \cdot D \cdot 10^6}$$
+}
+\\
+\\
+The frequency $f$ cancels. Running faster draws more current for less time, and the product is constant within a voltage range. Converting $\mu$ from $\upmu$A to A and simplifying:
+
+\bigformula{E = \frac{V \cdot \mu \cdot N}{D \cdot 10^{12}}}
+
+\section{Duty Cycle}
+
+The duty cycle is the fraction of time the processor spends running inference versus sleeping. This is not measured from the x86 process---it is estimated from $f_{\min}$ and the target's maximum operating frequency $f_{\max}$. Since $f_{\min}$ is the frequency at which inference exactly fills the sample period ($\delta = 1$), running at any higher frequency proportionally reduces the duty cycle:
+
+\bigformula{\delta = \frac{f_{\min}}{f_{\max}}}
+\\
+\\
+A duty cycle above 1 indicates the inference cannot complete within the sample period at $f_{\max}$.
+
+The report also includes the \textbf{output ratio}: the fraction of input samples on which the pipeline produced output. Where $\delta$ measures overall processor utilisation, the output ratio measures how selectively the pipeline schedules inference.
+
+\section{Power Consumption}
+
+Average power has two components: active inference and sleep. Since $N$ is averaged over all input samples (including idle ones), $E \cdot f_s$ already accounts for pipeline selectivity. During idle time $(1 - \delta)$, the MCU draws sleep current $I_s$.
+
+\bigformula{P = E \cdot f_s + V \cdot I_s \cdot 10^{-3} \cdot (1 - \delta)}
+
+\end{document}

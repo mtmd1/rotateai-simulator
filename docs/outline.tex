@@ -1,0 +1,127 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+
+\title{RotateAI Simulator Outline}
+\author{Maxence Morel Dierckx}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Note}
+This document was the initial requirements outline. The implementation diverges in places. Please refer to the README and \verb|docs/derivations.pdf| for current behaviour.
+
+\section{Problem Statement}
+% What we need and why
+RotateAI inference pipelines must run on STM32U5 microcontrollers for multi-month whale tag deployments at ultra low power. To design efficient programs, we need the ability to validate that a pipeline:
+
+\begin{enumerate}
+	\item Produces acceptable error in outputs.
+	\item Meets resource constraints (space, time, power).
+\end{enumerate}
+
+The proposed simulator is a desktop tool that tests pipelines in the form of C binaries against real sensor data without requiring embedded hardware.
+
+To enable rapid testing and iteration, the simulator must be decoupled from the pipelines, allowing any conforming binary to be tested with any input data.
+
+\section{Functional Requirements}
+% What the simulator must do
+
+\subsection{Inputs}
+% Loading prh.mat files, extracting A/M/p channels
+
+The simulator will accept any quantity of MAT files with columns labelled:
+\begin{itemize}
+    \item $a_x$, $a_y$, $a_z$ (accelerometer).
+    \item $m_x$, $m_y$, $m_z$ (magnetometer).
+    \item $p$ (pressure).
+    \item $aw_x$, $aw_y$, $aw_z$ (ground truth accelerometer).
+    \item $mw_x$, $mw_y$, $mw_z$ (ground truth magnetometer).\\
+\end{itemize}
+
+\noindent The simulator will accept one reference to any compiled C binary.\\
+	
+\noindent The simulator will accept a configuration file in the TOML format providing:
+\begin{itemize}
+    \item Data sample rate in Hertz.
+    \item Microcontroller voltage.
+    \item Microcontroller Dhrystone Million Instructions Per Second (DMIPS) per MHz.
+    \item Minimum frequency safety margin.
+\end{itemize}
+
+\subsection{Execution}
+% How simulator calls the C pipeline, interface contract
+
+The simulator will run a separate simulation for every MAT file and output a separate report for each.\\
+
+\noindent A simulation will:
+\begin{itemize}
+    \item Run the binary.
+    \item Feed data to the process sample by sample.
+    \item Read data of the same shape from the process.
+\end{itemize}
+
+\subsection{Benchmarking}
+% Time and space complexity measurement
+
+The simulator will measure the following metrics:
+\begin{itemize}
+    \item \textbf{File size} of the program in bytes.
+    \item \textbf{Peak memory usage} in bytes.
+    \item \textbf{Average instructions} per inference.
+    \item \textbf{Floating-point Operations} per inference.\\
+\end{itemize}
+
+\noindent The simulator will derive (estimate) the following metrics using configurable constants:
+\begin{itemize}
+    \item \textbf{Minimum operating frequency} in Hertz.
+    \item \textbf{Energy per inference} estimate in Joules.
+    \item \textbf{Duty cycle} as a percentage.
+    \item \textbf{Power consumption} in Watts.\\
+\end{itemize}
+	
+\noindent The simulator will validate the following metrics:
+\begin{itemize}
+    \item \textbf{Absolute error} from the ground truth in sensor units ($A_w$ in $g$, $M_w$ in $\mu T$).\\
+\end{itemize}
+
+\subsection{Outputs}
+% Format of the output file
+
+The simulator will produce one JSON file for every simulation.\\
+
+\noindent Each JSON file will contain all of the stated metrics in human-readable format, with units labelled.\\
+
+\section{Non-Functional Requirements}
+% Performance, constraints, compatibility
+
+The platform should be Linux only with Python 3.10+.\\
+
+\noindent The simulation should take less than 100 times the real dataset duration to complete.\\
+
+\noindent Identical inputs should produce identical outputs.\\
+
+\section{Deliverable}
+% Concrete outputs
+
+Version 1.0.0 of the proposed simulator should be delivered as a repository on github.com/mtmd1 by 26/02/2026 at the latest.\\
+
+\noindent It should include clear instructions in the form of a README documenting the entire installation process and intended workflow.\\
+
+\noindent It should also contain a PDF document detailing how the derived metrics are estimated.\\
+
+\section{Success Criteria}
+% How we verify it works
+
+The simulator will be considered successful when:
+
+\begin{itemize}
+    \item It runs without error on at least one provided test dataset.
+    \item It produces a valid JSON file containing all specified metrics.
+    \item Measured metrics (file size, instruction count) match independent verification
+          (e.g., \verb|stat|, \verb|perf stat|).
+    \item Derived metrics match hand calculations using the same input constants.
+    \item A known-correct pipeline produces near-zero error; a known-incorrect pipeline produces significant error.
+\end{itemize}
+
+\end{document}
